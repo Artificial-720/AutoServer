@@ -1,0 +1,12 @@
+
+# Delay from time no players online to shut down server
+shutdown_server_delay = 3600
+# "Server is ready you will be connected in 5 seconds..."
+# "Connection failed. Please try again later."
+starting_message = "[<green>AutoServer<reset>] <red> %servername% <reset> is not online. Server is starting you will be redirected when ready."
+failed_message = "[<green>AutoServer<reset>] <red> Unable to connect you to %servername%. Please try again later."
+notify_message = "Server is ready you will be connected in 5 seconds..."
+[servers]
+    [servers.old]
+    start = 'echo start server'
+    stop = 'echo stop server'
