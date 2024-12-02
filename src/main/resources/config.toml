@@ -1,12 +1,21 @@
+# AutoServer Configuration File
 
-# Delay from time no players online to shut down server
-shutdown_server_delay = 3600
-# "Server is ready you will be connected in 5 seconds..."
-# "Connection failed. Please try again later."
+# Message displayed to the player when they attempt to connect to a server that is currently offline.
+# %servername% will be replaced with the name of the backend server.
 starting_message = "[<green>AutoServer<reset>] <red> %servername% <reset> is not online. Server is starting you will be redirected when ready."
+
+# Message displayed to the player if the server fails to start or cannot be connected to.
+# %servername% will be replaced with the name of the backend server.
 failed_message = "[<green>AutoServer<reset>] <red> Unable to connect you to %servername%. Please try again later."
-notify_message = "Server is ready you will be connected in 5 seconds..."
+
+# Message displayed to the player when the server is ready, indicating that they will be connected shortly.
+notify_message = "[<green>AutoServer<reset>] Server is ready you will be connected in 5 seconds..."
+
+
+
+# Define server-specific start commands. These commands are executed by AutoServer.
 [servers]
-    [servers.old]
+    # Configuration for a server named "survival".
+    [servers.survival]
+    # Command to start the "survival" server. Replace 'echo start server' with your actual server start command.
     start = 'echo start server'
-    stop = 'echo stop server'
