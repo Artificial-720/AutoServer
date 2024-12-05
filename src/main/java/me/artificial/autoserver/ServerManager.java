@@ -45,10 +45,6 @@ public class ServerManager {
         queuePlayers.put(player, serverName);
     }
 
-    public HashSet<String> getStartingServers() {
-        return startingServers;
-    }
-
     private void movePlayers(RegisteredServer server) {
         queuePlayers.forEach((player, serverName) -> {
             if (serverName.equals(server.getServerInfo().getName())) {

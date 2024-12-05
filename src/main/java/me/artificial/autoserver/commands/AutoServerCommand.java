@@ -5,14 +5,14 @@ import com.velocitypowered.api.command.SimpleCommand;
 import me.artificial.autoserver.AutoServer;
 import net.kyori.adventure.text.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class AutoServerCommand implements SimpleCommand {
-    private final AutoServer plugin;
     private final HashMap<String, SubCommand> subCommands;
 
     public AutoServerCommand(AutoServer plugin) {
-        this.plugin = plugin;
         subCommands = new HashMap<>();
 
         subCommands.put("reload", new ReloadCommand(plugin));
@@ -24,7 +24,7 @@ public class AutoServerCommand implements SimpleCommand {
         String[] args = invocation.arguments();
 
         if (args.length == 0) {
-            source.sendMessage(Component.text("Usage: /autoserver <start|stop|restart|autostart|autostop|list|reload>"));
+            source.sendMessage(Component.text("Usage: /autoserver reload"));
             return;
         }
 
@@ -34,6 +34,28 @@ public class AutoServerCommand implements SimpleCommand {
         } else {
             source.sendMessage(Component.text("Unknown subcommand: " + args[0]));
         }
+    }
+
+    @Override
+    public List<String> suggest(Invocation invocation) {
+        String[] args = invocation.arguments();
+        List<String> commands = new ArrayList<>(subCommands.keySet());
+        if (args.length == 0) {
+            // nothing typed yet
+            return commands;
+        } else if (args.length == 1) {
+            String part = args[0].toLowerCase();
+            return subCommands.keySet().stream()
+                    .filter(cmd -> cmd.startsWith(part))
+                    .toList();
+        } else if (args.length == 2) {
+            // 2 args pass onto the sub command for suggestions
+            String command = args[0].toLowerCase();
+            if (subCommands.containsKey(command)) {
+                return subCommands.get(command).suggest(invocation);
+            }
+        }
+        return List.of();
     }
 
     @Override

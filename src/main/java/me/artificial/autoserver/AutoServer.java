@@ -2,6 +2,8 @@ package me.artificial.autoserver;
 
 import com.google.inject.Inject;
 import com.moandjiezana.toml.Toml;
+import com.velocitypowered.api.command.CommandManager;
+import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
@@ -68,7 +70,14 @@ public class AutoServer {
         logger.info("Configuration Loaded");
 
         serverManager = new ServerManager(this);
-        proxy.getCommandManager().register("autoserver", new AutoServerCommand(this));
+
+        CommandManager commandManager = proxy.getCommandManager();
+        CommandMeta commandMeta = commandManager.metaBuilder("autoserver")
+                .aliases("as")
+                .plugin(this)
+                .build();
+        proxy.getCommandManager().register(commandMeta, new AutoServerCommand(this));
+
         logger.info("Successfully enabled AutoServer");
     }
 
@@ -104,9 +113,7 @@ public class AutoServer {
             logger.info("Server {}{}{} is not online attempting to start server", RED, originalServerName, RESET);
             sendMessageToPlayer(event.getPlayer(), getStartingMessage(), originalServerName);
             serverManager.delayedPlayerJoin(event.getPlayer(), originalServerName);
-            if (!serverManager.getStartingServers().contains(originalServerName)) {
-                serverManager.startServer(originalServer);
-            }
+            serverManager.startServer(originalServer);
         } catch (InterruptedException e) {
             // Something didn't work
             logger.error("Error during server connection");
