@@ -5,7 +5,9 @@ import com.velocitypowered.api.command.SimpleCommand;
 import me.artificial.autoserver.AutoServer;
 import net.kyori.adventure.text.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class AutoServerCommand implements SimpleCommand {
     private final AutoServer plugin;
@@ -16,6 +18,8 @@ public class AutoServerCommand implements SimpleCommand {
         subCommands = new HashMap<>();
 
         subCommands.put("reload", new ReloadCommand(plugin));
+        subCommands.put("shutdown", new ShutdownCommand(plugin));
+        subCommands.put("start", new StartCommand(plugin));
     }
 
     @Override
@@ -34,6 +38,28 @@ public class AutoServerCommand implements SimpleCommand {
         } else {
             source.sendMessage(Component.text("Unknown subcommand: " + args[0]));
         }
+    }
+
+    @Override
+    public List<String> suggest(Invocation invocation) {
+        String[] args = invocation.arguments();
+        List<String> commands = new ArrayList<>(subCommands.keySet());
+        if (args.length == 0) {
+            // nothing typed yet
+            return commands;
+        } else if (args.length == 1) {
+            String part = args[0].toLowerCase();
+            return subCommands.keySet().stream()
+                    .filter(cmd -> cmd.startsWith(part))
+                    .toList();
+        } else if (args.length == 2) {
+            // 2 args pass onto the sub command for suggestions
+            String command = args[0].toLowerCase();
+            if (subCommands.containsKey(command)) {
+                return subCommands.get(command).suggest(invocation);
+            }
+        }
+        return List.of();
     }
 
     @Override
@@ -58,4 +84,6 @@ public class AutoServerCommand implements SimpleCommand {
 
         //return invocation.source().hasPermission("autoserver.command." + invocation.arguments()[0].toLowerCase());
     }
+
+
 }
