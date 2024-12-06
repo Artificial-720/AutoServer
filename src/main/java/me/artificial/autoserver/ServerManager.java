@@ -1,18 +1,26 @@
 package me.artificial.autoserver;
 
 import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerPing;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.slf4j.Logger;
 
 import javax.naming.ConfigurationException;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 public class ServerManager {
+    private final static String COMMAND_BOOT = "BOOT_SERVER";
+    private final static int REMOTE_PORT = 8080;
 
     private final HashMap<Player, String> queuePlayers = new HashMap<>();
     private final HashSet<String> startingServers = new HashSet<>();
@@ -25,12 +33,31 @@ public class ServerManager {
     }
 
     public void startServer(RegisteredServer server) {
+        new Thread(() -> {
+            String serverName = server.getServerInfo().getName();
+            if (startingServers.contains(serverName)) {
+                logger.info("Server {} is already starting", serverName);
+                return;
+            }
+
+            logger.info("Starting server {}", serverName);
+
+            if (autoServer.isRemoteServer(server)) {
+                logger.info("Attempting to start with remote command");
+                sendCommandRemote(server);
+            } else {
+                logger.info("Attempting to start with local command");
+                sendCommandLocal(server);
+            }
+        });
+    }
+
+    public void delayedPlayerJoin(Player player, String serverName) {
+        queuePlayers.put(player, serverName);
+    }
+
+    private void sendCommandLocal(RegisteredServer server) {
         String serverName = server.getServerInfo().getName();
-        logger.info("Starting server {}", serverName);
-        if (startingServers.contains(serverName)) {
-            logger.info("Server {} is already starting", serverName);
-            return;
-        }
         try {
             String command = autoServer.getStartCommand(serverName);
             logger.info("Running start command for {} server. '{}'", serverName, command);
@@ -41,8 +68,64 @@ public class ServerManager {
         }
     }
 
-    public void delayedPlayerJoin(Player player, String serverName) {
-        queuePlayers.put(player, serverName);
+    private void sendCommandRemote(RegisteredServer server) {
+        InetAddress ip = server.getServerInfo().getAddress().getAddress();
+        try (Socket socket = new Socket(ip, REMOTE_PORT)) {
+            OutputStream out = socket.getOutputStream();
+            InputStream in = socket.getInputStream();
+
+            logger.info("Attempting to send BOOT_SERVER command");
+            out.write(COMMAND_BOOT.getBytes());
+            out.flush();
+
+            byte[] buffer = new byte[1024];
+            int read;
+            boolean noResponse = true;
+
+            while ((read = in.read(buffer)) != -1) {
+                String response = new String(buffer, 0, read);
+                noResponse = false;
+                logger.info("Server Response: {}", response.trim());
+                handleResponse(server, response.trim());
+            }
+            if (noResponse) {
+                logger.info("No response received from the server.");
+                failedToStartBackend(server.getServerInfo().getName());
+            }
+        } catch (Exception e) {
+            logger.warn("Error while communicating with the server: {}", e.getMessage());
+            failedToStartBackend(server.getServerInfo().getName());
+        }
+    }
+
+    private void handleResponse(RegisteredServer server, String response) {
+        if (response == null || response.isBlank()) {
+            logger.warn("Received an empty or null response.");
+            return;
+        }
+
+        String[] parts = response.split(":", 2);
+        if (parts.length < 2) {
+            logger.warn("Malformed response received: {}", response);
+            return;
+        }
+
+        String status = parts[0].trim();
+        String message = parts[1].trim();
+        logger.info("Response Status: {}, Message: {}", status, message);
+
+        switch (status.toUpperCase()) {
+            case "SUCCESS":
+                pingUntilRunning(server);
+                break;
+            case "ERROR":
+                logger.error("Backend server failed to start. Message: {}", message);
+                failedToStartBackend(server.getServerInfo().getName());
+                break;
+            default:
+                logger.warn("Unexpected status received: {}. Message: {}", status, message);
+                break;
+        }
     }
 
     private void movePlayers(RegisteredServer server) {
@@ -58,6 +141,9 @@ public class ServerManager {
                             if (throwable != null) {
                                 AutoServer.sendMessageToPlayer(player, autoServer.getFailedMessage(), serverName);
                                 logger.error("Failed to connect player to server {}", throwable.getMessage());
+                            } else {
+                                queuePlayers.remove(player);
+                                logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
                             }
                         });
                     }).delay(5, TimeUnit.SECONDS).schedule();
@@ -96,14 +182,30 @@ public class ServerManager {
                 }
             }
         }
+        failedToStartBackend(serverName);
+    }
+
+    private void failedToStartBackend(String serverName) {
         // Failed to start server
         startingServers.remove(serverName);
         logger.error("Failed to launch server {}", serverName);
+
+        // message each player and remove from queue
+        List<Player> playersToRemove = new ArrayList<>();
         queuePlayers.forEach((player, sn) -> {
-            if (serverName.equals(sn)) {
+            if (sn.equals(serverName)) {
                 AutoServer.sendMessageToPlayer(player, autoServer.getFailedMessage(), serverName);
+
+                // Check if connected to a server already
+                Optional<ServerConnection> playerCurrentServer = player.getCurrentServer();
+                if (playerCurrentServer.isEmpty()) {
+                    player.disconnect(Component.text("Failed to start server " + serverName).color(NamedTextColor.RED));
+                }
+
+                playersToRemove.add(player);
             }
         });
+        playersToRemove.forEach(queuePlayers::remove);
     }
 
     private void runCommand(String command) {

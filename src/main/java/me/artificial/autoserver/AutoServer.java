@@ -21,6 +21,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
 
 import javax.naming.ConfigurationException;
+import java.net.InetAddress;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -195,5 +196,10 @@ public class AutoServer {
 
     public void reloadConfig() {
         config = loadConfig(dataDirectory);
+    }
+
+    public boolean isRemoteServer(RegisteredServer server) {
+        InetAddress address = server.getServerInfo().getAddress().getAddress();
+        return !address.isLoopbackAddress() && !address.isAnyLocalAddress();
     }
 }
