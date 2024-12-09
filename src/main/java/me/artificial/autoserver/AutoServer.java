@@ -5,7 +5,6 @@ import com.moandjiezana.toml.Toml;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
@@ -20,13 +19,12 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
 
-import javax.naming.ConfigurationException;
-import java.net.InetAddress;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -55,8 +53,11 @@ public class AutoServer {
     }
 
     public static void sendMessageToPlayer(Player player, String message, String serverName) {
+        if (message == null) {
+            return;
+        }
         if (serverName != null) {
-            message = message.replace("%servername%", serverName);
+            message = message.replace("%serverName%", serverName);
         }
         MiniMessage miniMessage = MiniMessage.miniMessage();
         Component component = miniMessage.deserialize(message);
@@ -73,10 +74,7 @@ public class AutoServer {
         serverManager = new ServerManager(this);
 
         CommandManager commandManager = proxy.getCommandManager();
-        CommandMeta commandMeta = commandManager.metaBuilder("autoserver")
-                .aliases("as")
-                .plugin(this)
-                .build();
+        CommandMeta commandMeta = commandManager.metaBuilder("autoserver").aliases("as").plugin(this).build();
         proxy.getCommandManager().register(commandMeta, new AutoServerCommand(this));
 
         logger.info("Successfully enabled AutoServer");
@@ -87,8 +85,7 @@ public class AutoServer {
         // TODO Maybe shutdown all servers
         logger.info("Successfully disabled AutoServer");
     }
-
-    // Server Events
+    
     @Subscribe
     public void onServerPreConnect(ServerPreConnectEvent event) {
         // Check if the target server should be started
@@ -96,8 +93,6 @@ public class AutoServer {
         //RegisteredServer previousServer = event.getPreviousServer(); // Server was connected too
         CompletableFuture<ServerPing> serverPing = originalServer.ping();
         String originalServerName = originalServer.getServerInfo().getName();
-
-        // TODO Stop any scheduled shutdown for original server
 
         logger.info("Player {} attempting to join {}", event.getPlayer().getUsername(), originalServerName);
 
@@ -112,7 +107,7 @@ public class AutoServer {
             // Deny connection initially until server is online
             event.setResult(ServerPreConnectEvent.ServerResult.denied());
             logger.info("Server {}{}{} is not online attempting to start server", RED, originalServerName, RESET);
-            sendMessageToPlayer(event.getPlayer(), getStartingMessage(), originalServerName);
+            sendMessageToPlayer(event.getPlayer(), getMessage("starting").orElse(""), originalServerName);
             serverManager.delayedPlayerJoin(event.getPlayer(), originalServerName);
             serverManager.startServer(originalServer);
         } catch (InterruptedException e) {
@@ -122,49 +117,49 @@ public class AutoServer {
         }
     }
 
-    @Subscribe
-    public void onServerConnected(ServerConnectedEvent event) {
-        // Logic when a player connects to a backend server
-        // logger.info("onServerConnected Event {}", event.toString());
+    public void reloadConfig() {
+        config = loadConfig(dataDirectory);
     }
 
     public Logger getLogger() {
         return logger;
     }
 
-    public String getStartingMessage() {
-        return config.getString("starting_message");
-    }
-    public String getNotifyMessage() {
-        return config.getString("notify_message");
-    }
-    public String getFailedMessage() {
-        return config.getString("failed_message");
+    public ProxyServer getProxy() {
+        return proxy;
     }
 
-    public String getStartCommand(String serverName) throws ConfigurationException {
-        if (serverName == null || serverName.isEmpty()) {
-            throw new IllegalArgumentException("Server name cannot be null or empty");
+    public Optional<String> getMessage(String messageType) {
+        String prefix = config.getString("messages.prefix", "");
+        String message = config.getString("messages." + messageType);
+
+        if (message == null) {
+            return Optional.empty();
         }
 
-        Toml serversTable = config.getTable("servers");
-        if (serversTable == null) {
-            throw new ConfigurationException("Missing 'servers' table in the TOML configuration");
-        }
-        Toml specificTable = serversTable.getTable(serverName);
-        if (specificTable == null) {
-            throw new ConfigurationException("No configuration found for server: " + serverName);
-        }
-        String command = specificTable.getString("start");
-        if (command == null) {
-            throw new ConfigurationException("Missing 'start' command for server: " + serverName);
-        }
-        return command;
+        return Optional.of(prefix + message);
     }
 
-    // ------------------------------------------------------------
-    // Private functions
-    // ------------------------------------------------------------
+    public Optional<String> getStartCommand(String serverName) {
+        String command = config.getString("servers." + serverName + ".start");
+        return Optional.ofNullable(command);
+    }
+
+    public Optional<Boolean> isRemoteServer(RegisteredServer server) {
+        Boolean remote = config.getBoolean("servers." + server.getServerInfo().getName() + ".remote");
+
+        return Optional.ofNullable(remote);
+    }
+
+    public Optional<Integer> getPort(RegisteredServer server) {
+        Long longPort = config.getLong("servers." + server.getServerInfo().getName() + ".port");
+
+        if (longPort == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(longPort.intValue());
+    }
 
     private Toml loadConfig(Path path) {
         File configFile = new File(path.toFile(), "config.toml");
@@ -188,18 +183,5 @@ public class AutoServer {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public ProxyServer getProxy() {
-        return proxy;
-    }
-
-    public void reloadConfig() {
-        config = loadConfig(dataDirectory);
-    }
-
-    public boolean isRemoteServer(RegisteredServer server) {
-        InetAddress address = server.getServerInfo().getAddress().getAddress();
-        return !address.isLoopbackAddress() && !address.isAnyLocalAddress();
     }
 }
