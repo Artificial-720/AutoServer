@@ -5,6 +5,7 @@ import com.moandjiezana.toml.Toml;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
@@ -13,7 +14,6 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
-import com.velocitypowered.api.proxy.server.ServerPing;
 import me.artificial.autoserver.commands.AutoServerCommand;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -77,6 +77,7 @@ public class AutoServer {
         CommandMeta commandMeta = commandManager.metaBuilder("autoserver").aliases("as").plugin(this).build();
         proxy.getCommandManager().register(commandMeta, new AutoServerCommand(this));
 
+        serverManager.refreshServerCache(proxy.getAllServers());
         logger.info("Successfully enabled AutoServer");
     }
 
@@ -85,36 +86,44 @@ public class AutoServer {
         // TODO Maybe shutdown all servers
         logger.info("Successfully disabled AutoServer");
     }
-    
+
     @Subscribe
     public void onServerPreConnect(ServerPreConnectEvent event) {
+        long startTime = System.nanoTime();
         // Check if the target server should be started
         RegisteredServer originalServer = event.getOriginalServer(); // Server trying to connect too
         //RegisteredServer previousServer = event.getPreviousServer(); // Server was connected too
-        CompletableFuture<ServerPing> serverPing = originalServer.ping();
         String originalServerName = originalServer.getServerInfo().getName();
-
         logger.info("Player {} attempting to join {}", event.getPlayer().getUsername(), originalServerName);
 
+        CompletableFuture<Boolean> isOnline = serverManager.isServerOnline(originalServer, 50);
         try {
-            // Check if original server is online by pinging it
-            serverPing.get();
-            // Server is online allow player to connect
-            logger.info("Server {}{}{} is online allowing connection", GREEN, originalServerName, RESET);
-            event.setResult(ServerPreConnectEvent.ServerResult.allowed(originalServer));
-        } catch (ExecutionException e) {
-            // Server is not online
-            // Deny connection initially until server is online
-            event.setResult(ServerPreConnectEvent.ServerResult.denied());
-            logger.info("Server {}{}{} is not online attempting to start server", RED, originalServerName, RESET);
-            sendMessageToPlayer(event.getPlayer(), getMessage("starting").orElse(""), originalServerName);
-            serverManager.delayedPlayerJoin(event.getPlayer(), originalServerName);
-            serverManager.startServer(originalServer);
-        } catch (InterruptedException e) {
-            // Something didn't work
-            logger.error("Error during server connection");
+            if (isOnline.get()) {
+                logger.info("Server {}{}{} is online allowing connection", GREEN, originalServerName, RESET);
+                event.setResult(ServerPreConnectEvent.ServerResult.allowed(originalServer));
+            } else {
+                // server not online need to start it
+                logger.info("Server {}{}{} is not online attempting to start server", RED, originalServerName, RESET);
+                event.setResult(ServerPreConnectEvent.ServerResult.denied());
+
+                sendMessageToPlayer(event.getPlayer(), getMessage("starting").orElse(""), originalServerName);
+                serverManager.delayedPlayerJoin(event.getPlayer(), originalServerName);
+                serverManager.startServer(originalServer);
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            logger.error("Exception: {}", e.getMessage(), e);
             event.setResult(ServerPreConnectEvent.ServerResult.denied());
         }
+
+
+        long endTime = System.nanoTime();
+        long duration = (endTime - startTime);
+        logger.info("onServerPreConnect completed in: {}", duration);
+    }
+
+    @Subscribe
+    public void onServerConnected(ServerConnectedEvent event) {
+        serverManager.onServerConnected(event);
     }
 
     public void reloadConfig() {
