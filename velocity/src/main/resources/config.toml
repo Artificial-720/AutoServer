@@ -24,8 +24,6 @@ notify = "Server is ready you will be connected in 5 seconds..."
 [servers.survival]
 # Command to start the "survival" server. Replace start command with your actual server start command.
 start = 'start "" /D "C:\Users\MINECRAFT-SERVER\minecraft\servers\survival" cmd /c "start.bat"'
-# Command to stop the "survival" server (optional).
-#stop = ''
 # Indicates whether this is a remote server.
 remote = false
 

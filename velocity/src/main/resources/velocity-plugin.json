@@ -1,0 +1,10 @@
+{
+  "id": "autoserver",
+  "name": "AutoServer",
+  "version": "${version}",
+  "authors": [
+    "Artificial-720"
+  ],
+  "dependencies": [],
+  "main": "me.artificial.autoserver.velocity.AutoServer"
+}

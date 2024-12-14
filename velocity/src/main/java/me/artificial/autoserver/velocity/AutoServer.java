@@ -1,4 +1,4 @@
-package me.artificial.autoserver;
+package me.artificial.autoserver.velocity;
 
 import com.google.inject.Inject;
 import com.moandjiezana.toml.Toml;
@@ -14,7 +14,7 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
-import me.artificial.autoserver.commands.AutoServerCommand;
+import me.artificial.autoserver.velocity.commands.AutoServerCommand;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
@@ -28,7 +28,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-@Plugin(id = "autoserver", name = "AutoServer", version = BuildConstants.VERSION, authors = "Artificial-720")
+@Plugin(id = "autoserver")
 public class AutoServer {
 
     private static final String RESET = "\u001B[0m";
@@ -40,6 +40,7 @@ public class AutoServer {
     private Toml config;
     private ServerManager serverManager;
 
+    @SuppressWarnings("unused")
     @Inject
     public AutoServer(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
         // DON'T ACCESS VELOCITY API HERE

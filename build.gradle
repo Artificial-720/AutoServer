@@ -1,57 +1,51 @@
 plugins {
     id 'java'
-    id 'eclipse'
     id "org.jetbrains.gradle.plugin.idea-ext" version "1.0.1"
+    id 'com.gradleup.shadow' version '9.0.0-beta4'
 }
 
-group = 'me.artificial'
-version = '1.0-SNAPSHOT'
+allprojects {
+    group = "${group}"
+    version = "${version}"
 
-repositories {
-    mavenCentral()
-    maven {
-        name = "papermc-repo"
-        url = "https://repo.papermc.io/repository/maven-public/"
+    repositories {
+        mavenCentral()
+        maven {
+            name = "papermc-repo"
+            url = "https://repo.papermc.io/repository/maven-public/"
+        }
+        maven {
+            name = "sonatype"
+            url = "https://oss.sonatype.org/content/groups/public/"
+        }
+        maven { url 'https://papermc.io/repo/repository/maven-public/' }
+        maven { url 'https://maven.fabricmc.net/' }
+        maven { url 'https://velocitypowered.com/maven/' }
     }
 }
+
+subprojects {
+    tasks.withType(Jar).tap {
+        configureEach {
+            archiveBaseName.set("${rootProject.name}-${project.name}")
+        }
+    }
+}
+
+
+
+// Build fat jar with everything in it using shadowJar
 
 dependencies {
-compileOnly "com.velocitypowered:velocity-api:3.3.0-SNAPSHOT"
-    annotationProcessor "com.velocitypowered:velocity-api:3.3.0-SNAPSHOT"
+    implementation project(":common")
+    implementation project(":papermc")
+    implementation project(":velocity")
 }
 
-def targetJavaVersion = 17
-java {
-    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    sourceCompatibility = javaVersion
-    targetCompatibility = javaVersion
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+shadowJar {
+    manifest {
+        attributes(
+                'Main-Class': 'me.artificial.autoserver.common.BootListener'
+        )
     }
 }
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        options.release.set(targetJavaVersion)
-    }
-}
-
-def templateSource = file('src/main/templates')
-def templateDest = layout.buildDirectory.dir('generated/sources/templates')
-def generateTemplates = tasks.register('generateTemplates', Copy) { task ->
-    def props = [
-            'version': project.version
-    ]
-    task.inputs.properties props
-
-    task.from templateSource
-    task.into templateDest
-    task.expand props
-}
-
-sourceSets.main.java.srcDir(generateTemplates.map { it.outputs })
-
-rootProject.idea.project.settings.taskTriggers.afterSync generateTemplates
-project.eclipse.synchronizationTasks(generateTemplates)

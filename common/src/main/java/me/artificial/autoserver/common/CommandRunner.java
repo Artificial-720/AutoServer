@@ -1,4 +1,4 @@
-package me.artificial.autoserver;
+package me.artificial.autoserver.common;
 
 import java.io.IOException;
 
