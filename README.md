@@ -11,6 +11,7 @@ AutoServer is a Minecraft plugin designed for the [Velocity Proxy](https://paper
 ## Requirements
 
 - **Velocity Proxy**: Ensure your network is running Velocity Proxy.
+- **PaperMC**: PaperMC is required only for remote server startup functionality; it must be set up on the backend servers.
 
 ## Installation
 
@@ -18,9 +19,19 @@ AutoServer is a Minecraft plugin designed for the [Velocity Proxy](https://paper
 2. Place the `AutoServer.jar` file into your Velocity `plugins` folder.
 3. Restart your Velocity Proxy to load the plugin.
 
+### Remote Backend (PaperMC)
+
+1. Download the latest version of `AutoServer.jar` from the [Releases](https://github.com/Artificial-720/AutoServer/releases).
+2. Place the `AutoServer.jar` file into your PaperMC `plugins` folder.
+3. Restart your PaperMC server to load the plugin.
+
 ## Configuration
 
 After the first launch, the plugin will generate a `config.toml` file in the `plugins/AutoServer` directory. Modify this file to suit your setup.
+
+### Remote Backend Configuration (PaperMC)
+
+After the first launch, the plugin will generate a `config.yml` file in the `config` directory. Modify this file to suit your setup.
 
 ## Usage
 
@@ -31,7 +42,7 @@ After the first launch, the plugin will generate a `config.toml` file in the `pl
 
 ## Troubleshooting
 
-- **Server not starting?** Ensure the start command in `config.toml` is correct and executable.
+- **Server not starting?** Ensure the start command in `config.toml` is correct and executable. It's helpful to run the command in a new terminal to test the commands output.
 
 ## License
 
