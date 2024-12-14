@@ -1,8 +1,8 @@
-package me.artificial.autoserver.commands;
+package me.artificial.autoserver.velocity.commands;
 
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
-import me.artificial.autoserver.AutoServer;
+import me.artificial.autoserver.velocity.AutoServer;
 import net.kyori.adventure.text.Component;
 
 import java.util.ArrayList;

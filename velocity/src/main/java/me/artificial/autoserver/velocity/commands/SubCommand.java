@@ -1,4 +1,4 @@
-package me.artificial.autoserver.commands;
+package me.artificial.autoserver.velocity.commands;
 
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;

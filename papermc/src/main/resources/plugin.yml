@@ -1,0 +1,7 @@
+name: AutoServerPaper
+version: '${version}'
+main: me.artificial.autoserver.papermc.AutoServerPaper
+api-version: '1.21'
+load: STARTUP
+author: '${author}'
+description: '${description}'

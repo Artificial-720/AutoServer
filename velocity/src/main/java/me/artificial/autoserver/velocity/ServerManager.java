@@ -1,4 +1,4 @@
-package me.artificial.autoserver;
+package me.artificial.autoserver.velocity;
 
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.proxy.Player;

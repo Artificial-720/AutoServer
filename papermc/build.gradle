@@ -1,0 +1,24 @@
+plugins {
+    id 'java'
+    id "org.jetbrains.gradle.plugin.idea-ext" version "1.0.1"
+}
+
+dependencies {
+    implementation project(":common")
+    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
+}
+
+// Replaces the place holders in 'plugin.yml'
+// '${version}' -> '1.0.0'
+processResources {
+    def props = [
+            version: version,
+            author: author,
+            description: project.description
+    ]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('plugin.yml') {
+        expand props
+    }
+}

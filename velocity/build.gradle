@@ -1,0 +1,16 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    compileOnly "com.velocitypowered:velocity-api:3.3.0-SNAPSHOT"
+//    annotationProcessor "com.velocitypowered:velocity-api:3.3.0-SNAPSHOT"
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("velocity-plugin.json") {
+        expand "version": project.version
+    }
+}
