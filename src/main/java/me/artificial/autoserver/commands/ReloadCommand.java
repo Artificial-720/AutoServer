@@ -5,6 +5,8 @@ import com.velocitypowered.api.command.SimpleCommand;
 import me.artificial.autoserver.AutoServer;
 import net.kyori.adventure.text.Component;
 
+import java.util.List;
+
 public class ReloadCommand implements SubCommand {
     private final AutoServer plugin;
 
@@ -16,15 +18,17 @@ public class ReloadCommand implements SubCommand {
     public void execute(CommandSource source, String[] args) {
         plugin.getLogger().info("Reloading configuration...");
         plugin.reloadConfig();
+        plugin.getLogger().info("Configuration reloaded.");
         source.sendMessage(Component.text("Configuration reloaded."));
     }
 
     @Override
     public boolean hasPermission(SimpleCommand.Invocation invocation) {
-        String[] args = invocation.arguments();
-        if (!invocation.source().hasPermission("autoserver.command.reload")) {
-            return false;
-        }
-        return true;
+        return invocation.source().hasPermission("autoserver.command.reload");
+    }
+
+    @Override
+    public List<String> suggest(SimpleCommand.Invocation invocation) {
+        return List.of();
     }
 }
