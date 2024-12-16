@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "autoserverfabric",
+  "version": "${version}",
+  "name": "AutoServerFabric",
+  "description": "${description}",
+  "authors": ["${authors}"],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/autoserverfabric/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "me.artificial.autoserver.fabric.AutoServerFabric"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}

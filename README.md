@@ -12,6 +12,7 @@ AutoServer is a Minecraft plugin designed for the [Velocity Proxy](https://paper
 
 - **Velocity Proxy**: Ensure your network is running Velocity Proxy.
 - **PaperMC**: PaperMC is required only for remote server startup functionality; it must be set up on the backend servers.
+- **FabricMC**: Fabric is required only for remote server startup functionality; it must be set up on the backend servers.
 
 ## Installation
 
@@ -25,13 +26,24 @@ AutoServer is a Minecraft plugin designed for the [Velocity Proxy](https://paper
 2. Place the `AutoServer.jar` file into your PaperMC `plugins` folder.
 3. Restart your PaperMC server to load the plugin.
 
+### Remote Backend (FabricMC)
+
+1. Download the latest version of `AutoServer.jar` from the [Releases](https://github.com/Artificial-720/AutoServer/releases).
+2. Place the `AutoServer.jar` file into your Fabric `mods` folder.
+3. Restart your Fabric server to load the mod.
+
 ## Configuration
 
 After the first launch, the plugin will generate a `config.toml` file in the `plugins/AutoServer` directory. Modify this file to suit your setup.
 
 ### Remote Backend Configuration (PaperMC)
 
-After the first launch, the plugin will generate a `config.yml` file in the `config` directory. Modify this file to suit your setup.
+After the first launch, the plugin will generate a `AutoServer.properties` file in the `config` directory. Modify this file to suit your setup.
+
+### Remote Backend Configuration (FabricMC)
+
+After the first launch, the mod will generate a `AutoServer.properties` file in the `config` directory. Modify this file to suit your setup.
+
 
 ## Usage
 

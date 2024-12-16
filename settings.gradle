@@ -3,4 +3,4 @@ rootProject.name = 'AutoServer'
 include "common"
 include "papermc"
 include "velocity"
-//include "fabric"
+include "fabric"

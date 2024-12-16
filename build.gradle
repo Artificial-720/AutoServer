@@ -18,8 +18,6 @@ allprojects {
             name = "sonatype"
             url = "https://oss.sonatype.org/content/groups/public/"
         }
-        maven { url 'https://papermc.io/repo/repository/maven-public/' }
-        maven { url 'https://maven.fabricmc.net/' }
         maven { url 'https://velocitypowered.com/maven/' }
     }
 }
@@ -40,6 +38,7 @@ dependencies {
     implementation project(":common")
     implementation project(":papermc")
     implementation project(":velocity")
+    implementation project(":fabric")
 }
 
 shadowJar {
@@ -48,4 +47,5 @@ shadowJar {
                 'Main-Class': 'me.artificial.autoserver.common.BootListener'
         )
     }
+    archiveFileName.set("${rootProject.name}-${version}+mc${project.minecraft_version}--shadow.jar")
 }

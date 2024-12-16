@@ -44,12 +44,12 @@ public class Config {
 
     private static void loadDefaultConfig() {
         setProperty("port", "8080");
-        setProperty("startCommand", "./run.sh");
-        setProperty("runPluginCommand", "~/.jdks/corretto-22.0.2/bin/java -jar %pluginPath%");
+        setProperty("startCommand", "start.bat");
+        setProperty("runJarCommand", "java -jar %pluginPath%");
         saveConfig(" Default configuration file for the AutoServer.\n"
                 + " port: The port on which the Boot Listener listens for incoming connections. Default is 8080.\n"
-                + " startCommand: The script or command used to start the server. Default is run.sh.\n"
-                + " runPluginCommand: Command template to execute the Boot Listener. The placeholder %pluginPath% will be replaced with the absolute path to the plugin jar.");
+                + " startCommand: The script or command used to start the server. Default is start.bat.\n"
+                + " runJarCommand: Command template to execute the Boot Listener. The placeholder %pluginPath% will be replaced with the absolute path to the jar.");
     }
 
     public static String getProperty(String key) {
