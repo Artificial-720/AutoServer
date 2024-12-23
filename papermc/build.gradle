@@ -6,7 +6,7 @@ plugins {
 
 dependencies {
     implementation project(":common")
-    compileOnly "io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT"
+    compileOnly "io.papermc.paper:paper-api:${project.minecraft_version}-R0.1-SNAPSHOT"
 }
 
 // Replaces the place holders in 'plugin.yml'
@@ -14,7 +14,9 @@ dependencies {
 processResources {
     def props = [version    : version,
                  author     : author,
-                 description: project.description]
+                 description: project.description,
+                 minecraft_version: project.minecraft_version
+    ]
     inputs.properties props
     filteringCharset 'UTF-8'
     filesMatching('plugin.yml') {

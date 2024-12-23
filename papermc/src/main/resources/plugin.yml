@@ -1,7 +1,7 @@
 name: AutoServerPaper
 version: '${version}'
 main: me.artificial.autoserver.papermc.AutoServerPaper
-api-version: '1.21'
+api-version: '${minecraft_version}'
 load: STARTUP
 author: '${author}'
 description: '${description}'
