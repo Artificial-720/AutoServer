@@ -4,6 +4,8 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -19,6 +21,10 @@ public class BootListener {
     }
 
     public static void main(String[] args) {
+        long pid = ProcessHandle.current().pid();
+        System.out.println("================================================");
+        System.out.println("Boot Listener started with PID: " + pid);
+        System.out.println("Current date: " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date()));
         int port = Integer.parseInt(Config.getProperty("port"));
 
         new BootListener(port).start();

@@ -1,9 +1,12 @@
 plugins {
     id 'java'
+    id "org.jetbrains.gradle.plugin.idea-ext" version "1.0.1"
+    id 'com.gradleup.shadow' version '9.0.0-beta4'
 }
 
 dependencies {
-    compileOnly "com.velocitypowered:velocity-api:3.3.0-SNAPSHOT"
+    implementation project(":common")
+    compileOnly "com.velocitypowered:velocity-api:${project.velocity_version}"
 //    annotationProcessor "com.velocitypowered:velocity-api:3.3.0-SNAPSHOT"
 }
 
@@ -13,4 +16,8 @@ processResources {
     filesMatching("velocity-plugin.json") {
         expand "version": project.version
     }
+}
+
+shadowJar {
+    archiveFileName.set("${rootProject.name}-${project.name}-${version}.jar")
 }
