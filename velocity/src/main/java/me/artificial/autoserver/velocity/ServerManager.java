@@ -100,6 +100,9 @@ public class ServerManager {
             logger.info("Server {} is already starting", serverName);
             return;
         }
+
+        startingServers.add(serverName);
+
         new Thread(() -> {
             logger.info("Starting server {}", serverName);
             Optional<Boolean> remote = autoServer.isRemoteServer(server);
@@ -161,7 +164,7 @@ public class ServerManager {
                     AutoServer.sendMessageToPlayer(player, autoServer.getMessage("notify").orElse(""));
 
                     // Schedule the connection request to run after 5 seconds
-                    autoServer.getProxy().getScheduler().buildTask(autoServer, () -> {
+                    autoServer.getProxy().getScheduler().buildTask(autoServer, () ->
                         player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
                             if (throwable != null) {
                                 AutoServer.sendMessageToPlayer(player, autoServer.getMessage("failed").orElse(""), serverName);
@@ -170,8 +173,7 @@ public class ServerManager {
                                 logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
                             }
                             queuePlayers.remove(player);
-                        });
-                    }).delay(5, TimeUnit.SECONDS).schedule();
+                        })).delay(5, TimeUnit.SECONDS).schedule();
                 }
             }
         });
