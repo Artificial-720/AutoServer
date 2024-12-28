@@ -24,7 +24,6 @@ public class ServerManager {
     public static final int TIMEOUT = 5000;
     private final static String COMMAND_BOOT = "BOOT_SERVER\n";
     private final static int REMOTE_PORT = 8080;
-    private static final long CACHE_EXPIRATION_TIME = 240000; // 4 minutes
     private final HashMap<Player, String> queuePlayers = new HashMap<>();
     private final HashSet<String> startingServers = new HashSet<>();
     private final Logger logger;
@@ -41,7 +40,8 @@ public class ServerManager {
         Optional<RegisteredServer> previous = event.getPreviousServer();
 
         // increase target server player count
-        serverStatusCache.computeIfAbsent(target.getServerInfo().getName(), name -> new ServerStatusCache(true, System.currentTimeMillis())).playerCount++;
+        serverStatusCache.computeIfAbsent(target.getServerInfo().getName(),
+                name -> new ServerStatusCache(true)).playerCount++;
 
         if (previous.isEmpty()) {
             return;
@@ -52,7 +52,6 @@ public class ServerManager {
             cache.playerCount--;
             if (cache.playerCount <= 0) {
                 cache.playerCount = 0;
-                cache.timestamp = System.currentTimeMillis();
             }
         }
     }
@@ -65,7 +64,7 @@ public class ServerManager {
             logger.info("isServerOnline cache hit (offline server) {}", serverName);
             return CompletableFuture.completedFuture(false);
         }
-        if (cachedStatus != null && (cachedStatus.playerCount > 0 || (System.currentTimeMillis() - cachedStatus.timestamp < CACHE_EXPIRATION_TIME))) {
+        if (cachedStatus != null && cachedStatus.playerCount > 0) {
             logger.info("isServerOnline cache hit (online server) {}", serverName);
             return CompletableFuture.completedFuture(true);
         }
@@ -75,11 +74,11 @@ public class ServerManager {
         // cache not valid need to ping
         return server.ping().orTimeout(pingTimeout, TimeUnit.MILLISECONDS).thenApply(serverPing -> {
             logger.info("ping success {} is online", serverName);
-            serverStatusCache.put(serverName, new ServerStatusCache(true, System.currentTimeMillis()));
+            serverStatusCache.put(serverName, new ServerStatusCache(true));
             return true;
         }).exceptionally(e -> {
             logger.info("ping failed {} is offline", serverName);
-            serverStatusCache.put(serverName, new ServerStatusCache(false, System.currentTimeMillis()));
+            serverStatusCache.put(serverName, new ServerStatusCache(false));
             return false;
         });
     }
@@ -190,7 +189,7 @@ public class ServerManager {
                     logger.info("Server {} is online. Moving queued players...", serverName);
 
                     startingServers.remove(serverName);
-                    serverStatusCache.put(serverName, new ServerStatusCache(true, System.currentTimeMillis()));
+                    serverStatusCache.put(serverName, new ServerStatusCache(true));
                     movePlayers(server);
 
                     return;
@@ -284,15 +283,4 @@ public class ServerManager {
         playersToRemove.forEach(queuePlayers::remove);
     }
 
-    private static class ServerStatusCache {
-        boolean isOnline;
-        long timestamp;
-        int playerCount;
-
-        ServerStatusCache(boolean isOnline, long timestamp) {
-            this.isOnline = isOnline;
-            this.timestamp = timestamp;
-            this.playerCount = 0;
-        }
-    }
 }

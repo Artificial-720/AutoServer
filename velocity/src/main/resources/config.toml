@@ -1,16 +1,21 @@
 # AutoServer Configuration File
+# Author: Artificial-720
+# For issues or suggestions, please submit them at: https://github.com/Artificial-720/AutoServer/issues
 
 [messages]
 # Prefix added to all messages displayed to the player.
 prefix = "[<green>AutoServer<reset>] "
 
+# Message displayed to player when the server status is being checked.
+checking = "Checking server status... Please wait."
+
 # Message displayed to the player when they attempt to connect to a server that is currently offline.
 # %servername% will be replaced with the name of the backend server.
-starting = "<red> %serverName% <reset> is not online. Server is starting you will be redirected when ready."
+starting = "<red> %serverName% <reset> is currently offline. Server is starting you will be redirected when ready."
 
 # Message displayed to the player if the server fails to start or cannot be connected to.
 # %servername% will be replaced with the name of the backend server.
-failed = "<red> Unable to connect you to %serverName%. Please try again later."
+failed = "<red> Unable to connect you to %serverName%. Please try again later or contact support if this issue persists."
 
 # Message displayed to the player when the server is ready, indicating that they will be connected shortly.
 notify = "Server is ready you will be connected in 5 seconds..."
