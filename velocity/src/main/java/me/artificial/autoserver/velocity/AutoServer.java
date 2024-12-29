@@ -5,7 +5,6 @@ import com.moandjiezana.toml.Toml;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
@@ -120,11 +119,6 @@ public class AutoServer {
         long endTime = System.nanoTime();
         long duration = (endTime - startTime);
         logger.info("onServerPreConnect completed in: {}", duration);
-    }
-
-    @Subscribe
-    public void onServerConnected(ServerConnectedEvent event) {
-        serverManager.onServerConnected(event);
     }
 
     public void reloadConfig() {

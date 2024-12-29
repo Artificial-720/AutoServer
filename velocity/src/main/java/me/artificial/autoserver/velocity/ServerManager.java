@@ -1,6 +1,5 @@
 package me.artificial.autoserver.velocity;
 
-import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
@@ -24,7 +23,6 @@ public class ServerManager {
     public static final int TIMEOUT = 5000;
     private final static String COMMAND_BOOT = "BOOT_SERVER\n";
     private final static int REMOTE_PORT = 8080;
-    private static final long CACHE_EXPIRATION_TIME = 240000; // 4 minutes
     private final HashMap<Player, String> queuePlayers = new HashMap<>();
     private final HashSet<String> startingServers = new HashSet<>();
     private final Logger logger;
@@ -36,27 +34,6 @@ public class ServerManager {
         this.logger = autoServer.getLogger();
     }
 
-    public void onServerConnected(ServerConnectedEvent event) {
-        RegisteredServer target = event.getServer();
-        Optional<RegisteredServer> previous = event.getPreviousServer();
-
-        // increase target server player count
-        serverStatusCache.computeIfAbsent(target.getServerInfo().getName(), name -> new ServerStatusCache(true, System.currentTimeMillis())).playerCount++;
-
-        if (previous.isEmpty()) {
-            return;
-        }
-
-        ServerStatusCache cache = serverStatusCache.get(previous.get().getServerInfo().getName());
-        if (cache != null) {
-            cache.playerCount--;
-            if (cache.playerCount <= 0) {
-                cache.playerCount = 0;
-                cache.timestamp = System.currentTimeMillis();
-            }
-        }
-    }
-
     public CompletableFuture<Boolean> isServerOnline(RegisteredServer server, int pingTimeout) {
         String serverName = server.getServerInfo().getName();
         ServerStatusCache cachedStatus = serverStatusCache.get(serverName);
@@ -65,7 +42,7 @@ public class ServerManager {
             logger.info("isServerOnline cache hit (offline server) {}", serverName);
             return CompletableFuture.completedFuture(false);
         }
-        if (cachedStatus != null && (cachedStatus.playerCount > 0 || (System.currentTimeMillis() - cachedStatus.timestamp < CACHE_EXPIRATION_TIME))) {
+        if (!server.getPlayersConnected().isEmpty()) {
             logger.info("isServerOnline cache hit (online server) {}", serverName);
             return CompletableFuture.completedFuture(true);
         }
@@ -75,11 +52,11 @@ public class ServerManager {
         // cache not valid need to ping
         return server.ping().orTimeout(pingTimeout, TimeUnit.MILLISECONDS).thenApply(serverPing -> {
             logger.info("ping success {} is online", serverName);
-            serverStatusCache.put(serverName, new ServerStatusCache(true, System.currentTimeMillis()));
+            serverStatusCache.put(serverName, new ServerStatusCache(true));
             return true;
         }).exceptionally(e -> {
             logger.info("ping failed {} is offline", serverName);
-            serverStatusCache.put(serverName, new ServerStatusCache(false, System.currentTimeMillis()));
+            serverStatusCache.put(serverName, new ServerStatusCache(false));
             return false;
         });
     }
@@ -101,6 +78,9 @@ public class ServerManager {
             logger.info("Server {} is already starting", serverName);
             return;
         }
+
+        startingServers.add(serverName);
+
         new Thread(() -> {
             logger.info("Starting server {}", serverName);
             Optional<Boolean> remote = autoServer.isRemoteServer(server);
@@ -162,7 +142,7 @@ public class ServerManager {
                     AutoServer.sendMessageToPlayer(player, autoServer.getMessage("notify").orElse(""));
 
                     // Schedule the connection request to run after 5 seconds
-                    autoServer.getProxy().getScheduler().buildTask(autoServer, () -> {
+                    autoServer.getProxy().getScheduler().buildTask(autoServer, () ->
                         player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
                             if (throwable != null) {
                                 AutoServer.sendMessageToPlayer(player, autoServer.getMessage("failed").orElse(""), serverName);
@@ -171,8 +151,7 @@ public class ServerManager {
                                 logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
                             }
                             queuePlayers.remove(player);
-                        });
-                    }).delay(5, TimeUnit.SECONDS).schedule();
+                        })).delay(5, TimeUnit.SECONDS).schedule();
                 }
             }
         });
@@ -190,7 +169,7 @@ public class ServerManager {
                     logger.info("Server {} is online. Moving queued players...", serverName);
 
                     startingServers.remove(serverName);
-                    serverStatusCache.put(serverName, new ServerStatusCache(true, System.currentTimeMillis()));
+                    serverStatusCache.put(serverName, new ServerStatusCache(true));
                     movePlayers(server);
 
                     return;
@@ -284,15 +263,4 @@ public class ServerManager {
         playersToRemove.forEach(queuePlayers::remove);
     }
 
-    private static class ServerStatusCache {
-        boolean isOnline;
-        long timestamp;
-        int playerCount;
-
-        ServerStatusCache(boolean isOnline, long timestamp) {
-            this.isOnline = isOnline;
-            this.timestamp = timestamp;
-            this.playerCount = 0;
-        }
-    }
 }
