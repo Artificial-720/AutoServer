@@ -1,6 +1,5 @@
 package me.artificial.autoserver.velocity;
 
-import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
@@ -35,27 +34,6 @@ public class ServerManager {
         this.logger = autoServer.getLogger();
     }
 
-    public void onServerConnected(ServerConnectedEvent event) {
-        RegisteredServer target = event.getServer();
-        Optional<RegisteredServer> previous = event.getPreviousServer();
-
-        // increase target server player count
-        serverStatusCache.computeIfAbsent(target.getServerInfo().getName(),
-                name -> new ServerStatusCache(true)).playerCount++;
-
-        if (previous.isEmpty()) {
-            return;
-        }
-
-        ServerStatusCache cache = serverStatusCache.get(previous.get().getServerInfo().getName());
-        if (cache != null) {
-            cache.playerCount--;
-            if (cache.playerCount <= 0) {
-                cache.playerCount = 0;
-            }
-        }
-    }
-
     public CompletableFuture<Boolean> isServerOnline(RegisteredServer server, int pingTimeout) {
         String serverName = server.getServerInfo().getName();
         ServerStatusCache cachedStatus = serverStatusCache.get(serverName);
@@ -64,7 +42,7 @@ public class ServerManager {
             logger.info("isServerOnline cache hit (offline server) {}", serverName);
             return CompletableFuture.completedFuture(false);
         }
-        if (cachedStatus != null && cachedStatus.playerCount > 0) {
+        if (!server.getPlayersConnected().isEmpty()) {
             logger.info("isServerOnline cache hit (online server) {}", serverName);
             return CompletableFuture.completedFuture(true);
         }
