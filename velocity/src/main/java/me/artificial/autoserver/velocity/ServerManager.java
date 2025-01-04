@@ -34,37 +34,27 @@ public class ServerManager {
         this.logger = autoServer.getLogger();
     }
 
-    public CompletableFuture<Boolean> isServerOnline(RegisteredServer server, int pingTimeout) {
+    public CompletableFuture<Boolean> isServerOnline(RegisteredServer server) {
         String serverName = server.getServerInfo().getName();
         ServerStatusCache cachedStatus = serverStatusCache.get(serverName);
 
         if (cachedStatus != null && !cachedStatus.isOnline) {
-            logger.info("isServerOnline cache hit (offline server) {}", serverName);
+            logger.info("Cache check for server '{}' is OFFLINE", serverName);
             return CompletableFuture.completedFuture(false);
         }
         if (!server.getPlayersConnected().isEmpty()) {
-            logger.info("isServerOnline cache hit (online server) {}", serverName);
+            logger.info("Players detected on server '{}', assuming ONLINE", serverName);
             return CompletableFuture.completedFuture(true);
         }
 
-        logger.info("isServerOnline cache miss");
-
         // cache not valid need to ping
-        return server.ping().orTimeout(pingTimeout, TimeUnit.MILLISECONDS).thenApply(serverPing -> {
-            logger.info("ping success {} is online", serverName);
-            serverStatusCache.put(serverName, new ServerStatusCache(true));
-            return true;
-        }).exceptionally(e -> {
-            logger.info("ping failed {} is offline", serverName);
-            serverStatusCache.put(serverName, new ServerStatusCache(false));
-            return false;
-        });
+        return pingServer(server, 50);
     }
 
     public void refreshServerCache(Collection<RegisteredServer> servers) {
         logger.info("Refreshing Server cache...");
         for (RegisteredServer server : servers) {
-            isServerOnline(server, 5000);
+            pingServer(server, 5000);
         }
     }
 
@@ -83,6 +73,21 @@ public class ServerManager {
 
         new Thread(() -> {
             logger.info("Starting server {}", serverName);
+
+            // Do a long ping to check if server is actually offline before trying to start it
+            CompletableFuture<Boolean> isOnline = pingServer(server, 5000);
+
+            try {
+                if (isOnline.get()) {
+                    // Already running
+                    startingServers.remove(serverName);
+                    movePlayers(server);
+                    return;
+                }
+            } catch (InterruptedException | ExecutionException e) {
+                logger.error("Failed to determine server status, assuming offline");
+            }
+
             Optional<Boolean> remote = autoServer.isRemoteServer(server);
 
             if (remote.isPresent() && remote.get()) {
@@ -93,6 +98,20 @@ public class ServerManager {
                 sendCommandLocal(server);
             }
         }).start();
+    }
+
+    private CompletableFuture<Boolean> pingServer(RegisteredServer server, int pingTimeout) {
+        String serverName = server.getServerInfo().getName();
+        logger.info("Pinging server {}...", serverName);
+        return server.ping().orTimeout(pingTimeout, TimeUnit.MILLISECONDS).thenApply(serverPing -> {
+            logger.info("ping success {} is online", serverName);
+            serverStatusCache.put(serverName, new ServerStatusCache(true));
+            return true;
+        }).exceptionally(e -> {
+            logger.info("ping failed {} is offline", serverName);
+            serverStatusCache.put(serverName, new ServerStatusCache(false));
+            return false;
+        });
     }
 
     private void handleResponse(RegisteredServer server, String response) {
