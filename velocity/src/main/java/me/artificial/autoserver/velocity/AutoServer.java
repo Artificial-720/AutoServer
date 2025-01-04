@@ -96,7 +96,7 @@ public class AutoServer {
         String originalServerName = originalServer.getServerInfo().getName();
         logger.info("Player {} attempting to join {}", event.getPlayer().getUsername(), originalServerName);
 
-        CompletableFuture<Boolean> isOnline = serverManager.isServerOnline(originalServer, 50);
+        CompletableFuture<Boolean> isOnline = serverManager.isServerOnline(originalServer);
         try {
             if (isOnline.get()) {
                 logger.info("Server {}{}{} is online allowing connection", GREEN, originalServerName, RESET);
