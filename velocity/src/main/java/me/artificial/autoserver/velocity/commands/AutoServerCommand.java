@@ -16,6 +16,7 @@ public class AutoServerCommand implements SimpleCommand {
         subCommands = new HashMap<>();
 
         subCommands.put("reload", new ReloadCommand(plugin));
+        subCommands.put("help", new HelpCommand());
     }
 
     @Override

@@ -52,6 +52,12 @@ After the first launch, the mod will generate a `AutoServer.properties` file in 
 3. Players will see a configurable message while the server is starting.
 4. Once the server is online, players will be seamlessly connected.
 
+## Permissions
+
+- **autoserver.base** - Base permission required to access any command
+- **autoserver.command.reload** - Allow to reload the plugin
+- **autoserver.command.help** - Allows a player to access the help menu
+
 ## Troubleshooting
 
 - **Server not starting?** Ensure the start command in `config.toml` is correct and executable. It's helpful to run the command in a new terminal to test the commands output.
