@@ -37,6 +37,11 @@ public class AutoServer {
     private final Logger logger;
     private final Path dataDirectory;
     private Toml config;
+
+    public ServerManager getServerManager() {
+        return serverManager;
+    }
+
     private ServerManager serverManager;
 
     @SuppressWarnings("unused")

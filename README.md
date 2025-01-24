@@ -57,6 +57,7 @@ After the first launch, the mod will generate a `AutoServer.properties` file in 
 - **autoserver.base** - Base permission required to access any command
 - **autoserver.command.reload** - Allow to reload the plugin
 - **autoserver.command.help** - Allows a player to access the help menu
+- **autoserver.command.status** - Allows a player access to status command
 
 ## Troubleshooting
 
