@@ -282,4 +282,16 @@ public class ServerManager {
         playersToRemove.forEach(queuePlayers::remove);
     }
 
+    public ServerStatus getServerStatus(RegisteredServer registeredServer) {
+        CompletableFuture<Boolean> isOnline = isServerOnline(registeredServer);
+        try {
+            if (isOnline.get()) {
+                return ServerStatus.RUNNING;
+            } else {
+                return ServerStatus.STOPPED;
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            return ServerStatus.UNKNOWN;
+        }
+    }
 }
