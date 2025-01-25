@@ -7,11 +7,11 @@
 prefix = "[<green>AutoServer<reset>] "
 
 # Message displayed to the player when they attempt to connect to a server that is currently offline.
-# %servername% will be replaced with the name of the backend server.
+# %serverName% will be replaced with the name of the backend server.
 starting = "<red> %serverName% <reset> is currently offline. Server is starting you will be redirected when ready."
 
 # Message displayed to the player if the server fails to start or cannot be connected to.
-# %servername% will be replaced with the name of the backend server.
+# %serverName% will be replaced with the name of the backend server.
 failed = "<red> Unable to connect you to %serverName%.<reset> Please try again later or contact support if this issue persists."
 
 # Message displayed to the player when the server is ready, indicating that they will be connected shortly.
@@ -26,13 +26,18 @@ notify = "Server is ready you will be connected in 5 seconds..."
 [servers.survival]
 # Command to start the "survival" server. Replace start command with your actual server start command.
 start = 'start "" /D "C:\Users\MINECRAFT-SERVER\minecraft\servers\survival" cmd /c "start.bat"'
-# Indicates whether this is a remote server.
+# Indicates whether this is a remote server. (default: false)
 remote = false
+# Time in seconds to wait before attempting to connect a player.
+startupDelay = 60
 
 # Example Configuration for a server named "creative".
 [servers.creative]
 # Command to start and stop "creative" server.
 # No local command since it is a remote server.
 remote = true
-# Port the remote server listens on for start command (default is 8080).
+# Port the remote server listens on for start command (default: 8080).
 port = 8080
+# Time in seconds to wait before attempting to connect a player.
+# For a remote server probably want a longer delay
+startupDelay = 120

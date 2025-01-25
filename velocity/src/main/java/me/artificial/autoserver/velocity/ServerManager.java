@@ -22,7 +22,6 @@ import java.util.concurrent.TimeUnit;
 public class ServerManager {
     public static final int TIMEOUT = 5000;
     private final static String COMMAND_BOOT = "BOOT_SERVER\n";
-    private final static int REMOTE_PORT = 8080;
     private final HashMap<Player, String> queuePlayers = new HashMap<>();
     private final HashSet<String> startingServers = new HashSet<>();
     private final Logger logger;
@@ -88,7 +87,7 @@ public class ServerManager {
                 logger.error("Failed to determine server status, assuming offline");
             }
 
-            Optional<Boolean> remote = autoServer.isRemoteServer(server);
+            Optional<Boolean> remote = autoServer.getConfig().isRemoteServer(server);
 
             if (remote.isPresent() && remote.get()) {
                 logger.info("Attempting to start with remote command");
@@ -158,13 +157,13 @@ public class ServerManager {
             if (serverName.equals(server.getServerInfo().getName())) {
                 if (player.isActive()) {
                     // Notify the player
-                    AutoServer.sendMessageToPlayer(player, autoServer.getMessage("notify").orElse(""));
+                    AutoServer.sendMessageToPlayer(player, autoServer.getConfig().getMessage("notify").orElse(""));
 
                     // Schedule the connection request to run after 5 seconds
                     autoServer.getProxy().getScheduler().buildTask(autoServer, () ->
                         player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
                             if (throwable != null) {
-                                AutoServer.sendMessageToPlayer(player, autoServer.getMessage("failed").orElse(""), serverName);
+                                AutoServer.sendMessageToPlayer(player, autoServer.getConfig().getMessage("failed").orElse(""), serverName);
                                 logger.error("Failed to connect player to server {}", throwable.getMessage());
                             } else {
                                 logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
@@ -180,6 +179,15 @@ public class ServerManager {
         int retries = 10;
         int delayBetweenRetries = 5;
         String serverName = server.getServerInfo().getName();
+        long startupDelay = autoServer.getConfig().getStartUpDelay(server);
+
+        try {
+            logger.info("Sleeping for {} seconds.", startupDelay);
+            Thread.sleep(startupDelay * 1000);
+        } catch (InterruptedException e) {
+            logger.warn("Ping delay sleep interrupted: {}", e.getMessage());
+            Thread.currentThread().interrupt();
+        }
 
         while (retries > 0) {
             try {
@@ -211,7 +219,7 @@ public class ServerManager {
     }
 
     private void sendCommandLocal(RegisteredServer server) {
-        Optional<String> command = autoServer.getStartCommand(server.getServerInfo().getName());
+        Optional<String> command = autoServer.getConfig().getStartCommand(server);
         if (command.isEmpty()) {
             logger.error("Command not found.");
             failedToStartBackend(server.getServerInfo().getName());
@@ -229,8 +237,13 @@ public class ServerManager {
 
     private void sendCommandRemote(RegisteredServer server) {
         InetAddress ip = server.getServerInfo().getAddress().getAddress();
-        Optional<Integer> port = autoServer.getPort(server);
-        try (Socket socket = new Socket(ip, port.orElse(REMOTE_PORT))) {
+        Optional<Integer> port = autoServer.getConfig().getPort(server);
+        if (port.isEmpty()) {
+            logger.error("Invalid port value for server {}. Valid port range is 0 to 65535.", server.getServerInfo().getName());
+            failedToStartBackend(server.getServerInfo().getName());
+            return;
+        }
+        try (Socket socket = new Socket(ip, port.get())) {
             socket.setSoTimeout(TIMEOUT);
             OutputStream out = socket.getOutputStream();
             InputStream in = socket.getInputStream();
@@ -268,7 +281,7 @@ public class ServerManager {
         List<Player> playersToRemove = new ArrayList<>();
         queuePlayers.forEach((player, sn) -> {
             if (sn.equals(serverName)) {
-                AutoServer.sendMessageToPlayer(player, autoServer.getMessage("failed").orElse(""), serverName);
+                AutoServer.sendMessageToPlayer(player, autoServer.getConfig().getMessage("failed").orElse(""), serverName);
 
                 // Check if connected to a server already
                 Optional<ServerConnection> playerCurrentServer = player.getCurrentServer();

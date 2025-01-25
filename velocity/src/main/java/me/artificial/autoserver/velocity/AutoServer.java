@@ -1,7 +1,6 @@
 package me.artificial.autoserver.velocity;
 
 import com.google.inject.Inject;
-import com.moandjiezana.toml.Toml;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
@@ -18,12 +17,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -36,7 +30,7 @@ public class AutoServer {
     private final ProxyServer proxy;
     private final Logger logger;
     private final Path dataDirectory;
-    private Toml config;
+    private Configuration config;
 
     public ServerManager getServerManager() {
         return serverManager;
@@ -73,7 +67,7 @@ public class AutoServer {
     public void onProxyInitialization(ProxyInitializeEvent event) {
         // velocity starting up (register event listeners here)
         logger.info("Loading configuration...");
-        config = loadConfig(dataDirectory);
+        config = new Configuration(dataDirectory);
         logger.info("Configuration Loaded");
 
         serverManager = new ServerManager(this);
@@ -111,7 +105,7 @@ public class AutoServer {
                 logger.info("Server {}{}{} is not online attempting to start server", RED, originalServerName, RESET);
                 event.setResult(ServerPreConnectEvent.ServerResult.denied());
 
-                sendMessageToPlayer(event.getPlayer(), getMessage("starting").orElse(""), originalServerName);
+                sendMessageToPlayer(event.getPlayer(), config.getMessage("starting").orElse(""), originalServerName);
                 serverManager.delayedPlayerJoin(event.getPlayer(), originalServerName);
                 serverManager.startServer(originalServer);
             }
@@ -126,10 +120,6 @@ public class AutoServer {
         logger.info("onServerPreConnect completed in: {}", duration);
     }
 
-    public void reloadConfig() {
-        config = loadConfig(dataDirectory);
-    }
-
     public Logger getLogger() {
         return logger;
     }
@@ -138,59 +128,7 @@ public class AutoServer {
         return proxy;
     }
 
-    public Optional<String> getMessage(String messageType) {
-        String prefix = config.getString("messages.prefix", "");
-        String message = config.getString("messages." + messageType);
-
-        if (message == null) {
-            return Optional.empty();
-        }
-
-        return Optional.of(prefix + message);
-    }
-
-    public Optional<String> getStartCommand(String serverName) {
-        String command = config.getString("servers." + serverName + ".start");
-        return Optional.ofNullable(command);
-    }
-
-    public Optional<Boolean> isRemoteServer(RegisteredServer server) {
-        Boolean remote = config.getBoolean("servers." + server.getServerInfo().getName() + ".remote");
-
-        return Optional.ofNullable(remote);
-    }
-
-    public Optional<Integer> getPort(RegisteredServer server) {
-        Long longPort = config.getLong("servers." + server.getServerInfo().getName() + ".port");
-
-        if (longPort == null) {
-            return Optional.empty();
-        }
-
-        return Optional.of(longPort.intValue());
-    }
-
-    private Toml loadConfig(Path path) {
-        File configFile = new File(path.toFile(), "config.toml");
-
-        try {
-            if (!configFile.exists()) {
-                if (!configFile.getParentFile().exists()) {
-                    if (!configFile.getParentFile().mkdirs()) {
-                        throw new IOException("Failed to create parent directories for config file.");
-                    }
-                }
-                InputStream input = getClass().getResourceAsStream("/" + configFile.getName());
-                if (input != null) {
-                    Files.copy(input, configFile.toPath());
-                } else if (!configFile.createNewFile()) {
-                    throw new IOException("Failed to create a new config file.");
-                }
-
-            }
-            return new Toml().read(configFile);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public Configuration getConfig() {
+        return config;
     }
 }

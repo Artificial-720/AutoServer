@@ -17,7 +17,7 @@ public class ReloadCommand implements SubCommand {
     @Override
     public void execute(CommandSource source, String[] args) {
         plugin.getLogger().info("Reloading configuration...");
-        plugin.reloadConfig();
+        plugin.getConfig().reloadConfig();
         plugin.getLogger().info("Configuration reloaded.");
         source.sendMessage(Component.text("Configuration reloaded."));
     }
