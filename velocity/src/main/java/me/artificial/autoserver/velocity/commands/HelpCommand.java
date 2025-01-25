@@ -15,6 +15,8 @@ public class HelpCommand implements SubCommand {
                 
                    reload    Reloads the config file
                    help      This message
+                   status    Show status of a server
+                   info      Show more details about the server
                 """));
     }
 
