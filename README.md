@@ -52,12 +52,15 @@ After the first launch, the mod will generate a `AutoServer.properties` file in 
 3. Players will see a configurable message while the server is starting.
 4. Once the server is online, players will be seamlessly connected.
 
-## Permissions
+## Commands and Permissions
 
-- **autoserver.base** - Base permission required to access any command
-- **autoserver.command.reload** - Allow to reload the plugin
-- **autoserver.command.help** - Allows a player to access the help menu
-- **autoserver.command.status** - Allows a player access to status command
+| Command                         | Description                                                                  | Permission                  |
+|---------------------------------|------------------------------------------------------------------------------|-----------------------------|
+| (No command, base permission)   | Base permission required to access any command                               | `autoserver.base`           |
+| `/autoserver reload`            | Reloads the plugin configuration.                                            | `autoserver.command.reload` |
+| `/autoserver help`              | Displays the help menu with available commands.                              | `autoserver.command.help`   |
+| `/autoserver status [<server>]` | Checks the status of a specified server or all servers if none is specified. | `autoserver.command.status` |
+| `/autoserver info <server>`     | Displays detailed information about a specified server.                      | `autoserver.command.info`   |
 
 ## Troubleshooting
 
