@@ -19,6 +19,7 @@ public class AutoServerCommand implements SimpleCommand {
         subCommands.put("help", new HelpCommand());
         subCommands.put("status", new StatusCommand(plugin));
         subCommands.put("info", new InfoCommand(plugin));
+        subCommands.put("start", new StartCommand(plugin));
     }
 
     @Override

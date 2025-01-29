@@ -1,43 +1,122 @@
 package me.artificial.autoserver.velocity;
 
 import com.velocitypowered.api.proxy.Player;
-import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
-import com.velocitypowered.api.proxy.server.ServerPing;
-import me.artificial.autoserver.common.CommandRunner;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.slf4j.Logger;
 
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * A ServerManager class that manages the state of servers, including starting, stopping,
+ * and checking the status of servers.
+ */
 public class ServerManager {
-    public static final int TIMEOUT = 5000;
-    private final static String COMMAND_BOOT = "BOOT_SERVER\n";
-    private final HashMap<Player, String> queuePlayers = new HashMap<>();
-    private final HashSet<String> startingServers = new HashSet<>();
     private final Logger logger;
     private final AutoServer autoServer;
-    private final Map<String, ServerStatusCache> serverStatusCache = new ConcurrentHashMap<>();
+    private final HashSet<String> startingServers = new HashSet<>();
+    private final HashMap<Player, String> queuePlayers = new HashMap<>();
+    private final Map<String, ServerStatus> serverStatusCache = new ConcurrentHashMap<>();
 
     public ServerManager(AutoServer autoServer) {
         this.autoServer = autoServer;
         this.logger = autoServer.getLogger();
     }
 
-    public CompletableFuture<Boolean> isServerOnline(RegisteredServer server) {
+    /**
+     * Starts a given server if it is not already running.
+     *
+     * @param server The server to start.
+     * @return A CompletableFuture that completes with a success message if the server starts successfully,
+     *         or completes exceptionally if an error occurs or the server is already running.
+     */
+    public CompletableFuture<String> startServer(RegisteredServer server) {
+        // Check if already starting
         String serverName = server.getServerInfo().getName();
-        ServerStatusCache cachedStatus = serverStatusCache.get(serverName);
+        if (startingServers.contains(serverName)) {
+            logger.info("Server {} is already starting", serverName);
+            return CompletableFuture.completedFuture("Server is already starting.");
+        }
 
-        if (cachedStatus != null && !cachedStatus.isOnline) {
+        startingServers.add(serverName);
+
+        logger.info("Attempting to start server: {}", serverName);
+
+        // Determine start strategy
+        Server serverStrategy = getServerStrategy(server);
+
+        // Do a long ping to check if server is actually offline before trying to start it
+        return isServerOnline(server)
+                .thenCompose(isOnline -> {
+                    if (isOnline) {
+                        // Already running
+                        moveQueuedPlayersToServer(server);
+                        return CompletableFuture.completedFuture("Server already running");
+                    }
+
+                    // Finally start the server using the given strategy
+                    return serverStrategy.start()
+                            .thenCompose(result -> waitForServerToBecomeResponsive(server)
+                                    .thenApply(isResponsive -> {
+                                        if (isResponsive) {
+                                            // Return the result after server becomes responsive.
+                                            moveQueuedPlayersToServer(server);
+                                            return "Server started and is responsive.";
+                                        } else {
+                                            // Return an error message if the server is not responsive.
+                                            throw new RuntimeException("Server started but is not responsive.");
+                                        }
+                                    }));
+                })
+                .whenComplete((result, ex) -> {
+                    // clean up
+                    startingServers.remove(serverName);
+                    if (ex != null) {
+                        logger.error("Failed to start server: {}", ex.getMessage());
+                    }
+                });
+    }
+
+    /**
+     * Stops a given server if it is currently running.
+     *
+     * @param server The server to stop.
+     * @return A CompletableFuture that completes with a success message if the server stops successfully,
+     *         or completes exceptionally if an error occurs or the server is already stopped.
+     */
+    @SuppressWarnings("unused")
+    public CompletableFuture<String> stopServer(RegisteredServer server) {
+        return CompletableFuture.completedFuture("Don't have function yet " + server.getServerInfo().getName());
+    }
+
+    /**
+     * Checks if the specified server is online (i.e., fully operational and ready to accept connections).
+     *
+     * @param server The server to check.
+     * @return A CompletableFuture that completes with true if the server is online, false otherwise.
+     */
+    public CompletableFuture<Boolean> isServerOnline(RegisteredServer server) {
+        return pingServer(server, 5000);
+    }
+
+    /**
+     * Performs a quick check on server responsiveness, including checking cache and optionally pinging the server.
+     * The state of the server may not be guaranteed with this check.
+     *
+     * @param server The server to check.
+     * @return A CompletableFuture that completes with true if the server is responsive, false otherwise.
+     */
+    public CompletableFuture<Boolean> isServerResponsive(RegisteredServer server) {
+        String serverName = server.getServerInfo().getName();
+        ServerStatus cachedStatus = serverStatusCache.get(serverName);
+
+        if (cachedStatus != null && cachedStatus.equals(ServerStatus.STOPPED)) {
             logger.info("Cache check for server '{}' is OFFLINE", serverName);
             return CompletableFuture.completedFuture(false);
         }
@@ -50,253 +129,17 @@ public class ServerManager {
         return pingServer(server, 50);
     }
 
-    public void refreshServerCache(Collection<RegisteredServer> servers) {
-        logger.info("Refreshing Server cache...");
-        for (RegisteredServer server : servers) {
-            pingServer(server, 5000);
+    /**
+     * Retrieves the current status of the specified server.
+     *
+     * @param server The server whose status is to be retrieved.
+     * @return The current status of the server (e.g., ONLINE, OFFLINE, UNKNOWN).
+     */
+    public ServerStatus getServerStatus(RegisteredServer server) {
+        if (startingServers.contains(server.getServerInfo().getName())) {
+            return ServerStatus.STARTING;
         }
-    }
-
-    public void delayedPlayerJoin(Player player, String serverName) {
-        queuePlayers.put(player, serverName);
-    }
-
-    public void startServer(RegisteredServer server) {
-        String serverName = server.getServerInfo().getName();
-        if (startingServers.contains(serverName)) {
-            logger.info("Server {} is already starting", serverName);
-            return;
-        }
-
-        startingServers.add(serverName);
-
-        new Thread(() -> {
-            logger.info("Starting server {}", serverName);
-
-            // Do a long ping to check if server is actually offline before trying to start it
-            CompletableFuture<Boolean> isOnline = pingServer(server, 5000);
-
-            try {
-                if (isOnline.get()) {
-                    // Already running
-                    startingServers.remove(serverName);
-                    movePlayers(server);
-                    return;
-                }
-            } catch (InterruptedException | ExecutionException e) {
-                logger.error("Failed to determine server status, assuming offline");
-            }
-
-            Optional<Boolean> remote = autoServer.getConfig().isRemoteServer(server);
-
-            if (remote.isPresent() && remote.get()) {
-                logger.info("Attempting to start with remote command");
-                sendCommandRemote(server);
-            } else {
-                logger.info("Attempting to start with local command");
-                sendCommandLocal(server);
-            }
-        }).start();
-    }
-
-    private CompletableFuture<Boolean> pingServer(RegisteredServer server, int pingTimeout) {
-        String serverName = server.getServerInfo().getName();
-        logger.info("Pinging server {}...", serverName);
-        return server.ping().orTimeout(pingTimeout, TimeUnit.MILLISECONDS).thenApply(serverPing -> {
-            logger.info("ping success {} is online", serverName);
-            serverStatusCache.put(serverName, new ServerStatusCache(true));
-            return true;
-        }).exceptionally(e -> {
-            logger.info("ping failed {} is offline", serverName);
-            serverStatusCache.put(serverName, new ServerStatusCache(false));
-            return false;
-        });
-    }
-
-    private void handleResponse(RegisteredServer server, String response) {
-        if (response == null || response.isBlank()) {
-            logger.warn("Received an empty or null response.");
-            return;
-        }
-
-        String[] parts = response.split(":", 2);
-        if (parts.length < 2) {
-            logger.warn("Malformed response received: {}", response);
-            return;
-        }
-
-        String status = parts[0].trim();
-        String message = parts[1].trim();
-        logger.info("Response Status: {}, Message: {}", status, message);
-
-        switch (status.toUpperCase()) {
-            case "ACKNOWLEDGED": // Backend server received the boot command and has acknowledged it
-                logger.info("Backend server has acknowledged boot command.");
-                break;
-            case "COMPLETED": // Backend server has executed the boot command successfully but is not yet running
-                logger.info("Backend server booting.");
-                pingUntilRunning(server);
-                break;
-            case "READY": // Backend server is fully booted and running
-                break;
-            case "FAILED": // Backend server encountered an error during boot
-                logger.error("Backend server failed to start. Message: {}", message);
-                failedToStartBackend(server.getServerInfo().getName());
-                break;
-            case "ERROR": // Backend server encountered an error
-                logger.warn("Error occurred on the backend server with message: {}", message);
-                break;
-            default: // Unrecognized status received from the backend
-                logger.warn("Unexpected status received: {}. Message: {}", status, message);
-                break;
-        }
-    }
-
-    private void movePlayers(RegisteredServer server) {
-        queuePlayers.forEach((player, serverName) -> {
-            if (serverName.equals(server.getServerInfo().getName())) {
-                if (player.isActive()) {
-                    // Notify the player
-                    AutoServer.sendMessageToPlayer(player, autoServer.getConfig().getMessage("notify").orElse(""));
-
-                    // Schedule the connection request to run after 5 seconds
-                    autoServer.getProxy().getScheduler().buildTask(autoServer, () ->
-                        player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
-                            if (throwable != null) {
-                                AutoServer.sendMessageToPlayer(player, autoServer.getConfig().getMessage("failed").orElse(""), serverName);
-                                logger.error("Failed to connect player to server {}", throwable.getMessage());
-                            } else {
-                                logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
-                            }
-                            queuePlayers.remove(player);
-                        })).delay(5, TimeUnit.SECONDS).schedule();
-                }
-            }
-        });
-    }
-
-    private void pingUntilRunning(RegisteredServer server) {
-        int retries = 10;
-        int delayBetweenRetries = 5;
-        String serverName = server.getServerInfo().getName();
-        long startupDelay = autoServer.getConfig().getStartUpDelay(server);
-
-        try {
-            logger.info("Sleeping for {} seconds.", startupDelay);
-            Thread.sleep(startupDelay * 1000);
-        } catch (InterruptedException e) {
-            logger.warn("Ping delay sleep interrupted: {}", e.getMessage());
-            Thread.currentThread().interrupt();
-        }
-
-        while (retries > 0) {
-            try {
-                ServerPing serverPing = server.ping().get();
-                if (serverPing != null) {
-                    logger.info("Server {} is online. Moving queued players...", serverName);
-
-                    startingServers.remove(serverName);
-                    serverStatusCache.put(serverName, new ServerStatusCache(true));
-                    movePlayers(server);
-
-                    return;
-                }
-            } catch (ExecutionException | InterruptedException e) {
-                logger.warn("Failed to ping server {}: {}. Retrying in {} seconds.", serverName, e.getMessage(), delayBetweenRetries);
-            }
-
-            retries--;
-            if (retries > 0) {
-                try {
-                    Thread.sleep(delayBetweenRetries * 1000); // Wait before retrying
-                } catch (InterruptedException e) {
-                    logger.warn("Ping retry sleep interrupted: {}", e.getMessage());
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
-        failedToStartBackend(serverName);
-    }
-
-    private void sendCommandLocal(RegisteredServer server) {
-        Optional<String> command = autoServer.getConfig().getStartCommand(server);
-        if (command.isEmpty()) {
-            logger.error("Command not found.");
-            failedToStartBackend(server.getServerInfo().getName());
-            return;
-        }
-
-        logger.info("Running start command for {} server. '{}'", server.getServerInfo().getName(), command);
-        if (CommandRunner.runCommand(command.get())) {
-            pingUntilRunning(server);
-        } else {
-            logger.error("Command Failed.");
-            failedToStartBackend(server.getServerInfo().getName());
-        }
-    }
-
-    private void sendCommandRemote(RegisteredServer server) {
-        InetAddress ip = server.getServerInfo().getAddress().getAddress();
-        Optional<Integer> port = autoServer.getConfig().getPort(server);
-        if (port.isEmpty()) {
-            logger.error("Invalid port value for server {}. Valid port range is 0 to 65535.", server.getServerInfo().getName());
-            failedToStartBackend(server.getServerInfo().getName());
-            return;
-        }
-        try (Socket socket = new Socket(ip, port.get())) {
-            socket.setSoTimeout(TIMEOUT);
-            OutputStream out = socket.getOutputStream();
-            InputStream in = socket.getInputStream();
-
-            logger.info("Attempting to send BOOT_SERVER command");
-            out.write(COMMAND_BOOT.getBytes());
-            out.flush();
-
-            byte[] buffer = new byte[1024];
-            int read;
-            boolean noResponse = true;
-
-            while ((read = in.read(buffer)) != -1) {
-                String response = new String(buffer, 0, read);
-                noResponse = false;
-                logger.info("Server Response: {}", response.trim());
-                handleResponse(server, response.trim());
-            }
-            if (noResponse) {
-                logger.info("No response received from the server.");
-                failedToStartBackend(server.getServerInfo().getName());
-            }
-        } catch (Exception e) {
-            logger.warn("Error while communicating with the server: {}", e.getMessage());
-            failedToStartBackend(server.getServerInfo().getName());
-        }
-    }
-
-    private void failedToStartBackend(String serverName) {
-        // Failed to start server
-        startingServers.remove(serverName);
-        logger.error("Failed to launch server {}", serverName);
-
-        // message each player and remove from queue
-        List<Player> playersToRemove = new ArrayList<>();
-        queuePlayers.forEach((player, sn) -> {
-            if (sn.equals(serverName)) {
-                AutoServer.sendMessageToPlayer(player, autoServer.getConfig().getMessage("failed").orElse(""), serverName);
-
-                // Check if connected to a server already
-                Optional<ServerConnection> playerCurrentServer = player.getCurrentServer();
-                if (playerCurrentServer.isEmpty()) {
-                    player.disconnect(Component.text("Failed to start server " + serverName).color(NamedTextColor.RED));
-                }
-
-                playersToRemove.add(player);
-            }
-        });
-        playersToRemove.forEach(queuePlayers::remove);
-    }
-
-    public ServerStatus getServerStatus(RegisteredServer registeredServer) {
-        CompletableFuture<Boolean> isOnline = isServerOnline(registeredServer);
+        CompletableFuture<Boolean> isOnline = isServerOnline(server);
         try {
             if (isOnline.get()) {
                 return ServerStatus.RUNNING;
@@ -307,4 +150,118 @@ public class ServerManager {
             return ServerStatus.UNKNOWN;
         }
     }
+
+    /**
+     * Queues a player to join a server once it's started and available.
+     *
+     * @param player The player to queue.
+     * @param serverName The name of the server the player is waiting to join.
+     */
+    public void queuePlayerForServerJoin(Player player, String serverName) {
+        queuePlayers.put(player, serverName);
+    }
+
+    private Server getServerStrategy(RegisteredServer server) {
+        Optional<Boolean> remote = autoServer.getConfig().isRemoteServer(server);
+        if (remote.isPresent() && remote.get()) {
+            return new RemoteServer(autoServer, server);
+        }
+        return new LocalServer(autoServer, server);
+    }
+
+    private CompletableFuture<Boolean> pingServer(RegisteredServer server, int pingTimeout) {
+        String serverName = server.getServerInfo().getName();
+        logger.info("Pinging server {}...", serverName);
+        return server.ping().orTimeout(pingTimeout, TimeUnit.MILLISECONDS).thenApply(serverPing -> {
+            logger.info("ping success {} is online", serverName);
+            serverStatusCache.put(serverName, ServerStatus.RUNNING);
+            return true;
+        }).exceptionally(e -> {
+            logger.info("ping failed {} is offline", serverName);
+            if (serverStatusCache.containsKey(serverName) &&
+                    !serverStatusCache.get(serverName).equals(ServerStatus.STARTING)) {
+                // only update to stopped if not in a state of starting
+                serverStatusCache.put(serverName, ServerStatus.STOPPED);
+            }
+            return false;
+        });
+    }
+
+    /**
+     * Continuously pings the specified server until it becomes responsive and ready.
+     *
+     * @param server The server to ping.
+     * @return A CompletableFuture that completes with true when the server is ready, false if an error occurs or the server does not respond.
+     */
+    private CompletableFuture<Boolean> waitForServerToBecomeResponsive(RegisteredServer server) {
+        return CompletableFuture.supplyAsync(() ->{
+            int retires = 10;
+            int delayBetweenRetries = 5; // seconds
+            long startupDelay = autoServer.getConfig().getStartUpDelay(server);
+
+            // Delay a little bit before trying to ping to give server time to start
+            try {
+                logger.info("Sleeping for {} seconds before checking if server started.", startupDelay);
+                Thread.sleep(startupDelay * 1000);
+            } catch (InterruptedException e) {
+                logger.warn("Ping delay sleep interrupted: {}", e.getMessage());
+                Thread.currentThread().interrupt();
+            }
+
+            // ping server with retires
+            while (retires > 0) {
+                try {
+                    if (pingServer(server, 5000).get()) {
+                        logger.info("Server {} is online. Moving queued players...", server.getServerInfo().getName());
+                        return true;
+                    } else {
+                        logger.warn("Failed to ping server {}. Retrying in {} seconds.", server.getServerInfo().getName(), delayBetweenRetries);
+                    }
+                } catch (ExecutionException | InterruptedException e) {
+                    logger.warn("Failed to ping server {}: {}. Retrying in {} seconds.", server.getServerInfo().getName(), e.getMessage(), delayBetweenRetries);
+                }
+
+                retires--;
+                if (retires > 0) {
+                    try {
+                        Thread.sleep(delayBetweenRetries * 1000L);
+                    } catch (InterruptedException e) {
+                        logger.warn("Ping retry sleep interrupted: {}", e.getMessage());
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+
+            return false;
+        });
+    }
+
+    /**
+     * Moves all players from the queue to the specified server once the server has started and is ready.
+     *
+     * @param server The server to which queued players will be moved.
+     */
+    private void moveQueuedPlayersToServer(RegisteredServer server) {
+        queuePlayers.forEach((player, serverName) -> {
+            if (serverName.equals(server.getServerInfo().getName())) {
+                if (player.isActive()) {
+                    // Notify the player
+                    AutoServer.sendMessageToPlayer(player, autoServer.getConfig().getMessage("notify").orElse(""));
+
+                    // Schedule the connection request to run after 5 seconds
+                    autoServer.getProxy().getScheduler().buildTask(autoServer, () ->
+                            player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
+                                if (throwable != null) {
+                                    AutoServer.sendMessageToPlayer(player, autoServer.getConfig().getMessage("failed").orElse(""), serverName);
+                                    logger.error("Failed to connect player to server {}", throwable.getMessage());
+                                } else {
+                                    logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
+                                }
+                                queuePlayers.remove(player);
+                            })).delay(5, TimeUnit.SECONDS).schedule();
+                }
+            }
+        });
+    }
+
 }
