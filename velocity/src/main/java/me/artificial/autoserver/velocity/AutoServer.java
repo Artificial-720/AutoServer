@@ -11,13 +11,16 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import me.artificial.autoserver.velocity.commands.AutoServerCommand;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -76,7 +79,7 @@ public class AutoServer {
         CommandMeta commandMeta = commandManager.metaBuilder("autoserver").aliases("as").plugin(this).build();
         proxy.getCommandManager().register(commandMeta, new AutoServerCommand(this));
 
-        serverManager.refreshServerCache(proxy.getAllServers());
+//        serverManager.refreshServerCache(proxy.getAllServers());
         logger.info("Successfully enabled AutoServer");
     }
 
@@ -95,9 +98,9 @@ public class AutoServer {
         String originalServerName = originalServer.getServerInfo().getName();
         logger.info("Player {} attempting to join {}", event.getPlayer().getUsername(), originalServerName);
 
-        CompletableFuture<Boolean> isOnline = serverManager.isServerOnline(originalServer);
+        CompletableFuture<Boolean> isResponsive = serverManager.isServerResponsive(originalServer);
         try {
-            if (isOnline.get()) {
+            if (isResponsive.get()) {
                 logger.info("Server {}{}{} is online allowing connection", GREEN, originalServerName, RESET);
                 event.setResult(ServerPreConnectEvent.ServerResult.allowed(originalServer));
             } else {
@@ -106,8 +109,18 @@ public class AutoServer {
                 event.setResult(ServerPreConnectEvent.ServerResult.denied());
 
                 sendMessageToPlayer(event.getPlayer(), config.getMessage("starting").orElse(""), originalServerName);
-                serverManager.delayedPlayerJoin(event.getPlayer(), originalServerName);
-                serverManager.startServer(originalServer);
+                serverManager.queuePlayerForServerJoin(event.getPlayer(), originalServerName);
+                serverManager.startServer(originalServer).exceptionally(ex -> {
+                    // Check if connected to a server already
+                    Optional<ServerConnection> playerCurrentServer = event.getPlayer().getCurrentServer();
+                    if (playerCurrentServer.isEmpty()) {
+                        event.getPlayer().disconnect(Component.text("Failed to start server " + originalServerName).color(NamedTextColor.RED));
+                    } else {
+                        // send fail message
+                        sendMessageToPlayer(event.getPlayer(), config.getMessage("failed").orElse(""), originalServerName);
+                    }
+                    return null;
+                });
             }
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Exception: {}", e.getMessage(), e);

@@ -62,6 +62,7 @@ public class StatusCommand implements SubCommand {
         return switch (status) {
             case ServerStatus.RUNNING -> NamedTextColor.GREEN;
             case ServerStatus.STOPPED -> NamedTextColor.GRAY;
+            case ServerStatus.STARTING -> NamedTextColor.YELLOW;
             case ServerStatus.UNKNOWN -> NamedTextColor.RED;
         };
     }

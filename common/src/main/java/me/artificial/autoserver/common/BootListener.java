@@ -124,7 +124,7 @@ public class BootListener {
 
     private void respond(PrintWriter writer, String message) {
         System.out.println("Sending > " + message);
-        writer.println(message + '\n');
+        writer.println(message);
     }
 
     private boolean startBackendServer() {
