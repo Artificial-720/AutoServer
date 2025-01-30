@@ -55,14 +55,15 @@ After the first launch, the mod will generate a `AutoServer.properties` file in 
 
 ## Commands and Permissions
 
-| Command                         | Description                                                                  | Permission                  |
-|---------------------------------|------------------------------------------------------------------------------|-----------------------------|
-| (No command, base permission)   | Base permission required to access any command                               | `autoserver.base`           |
-| `/autoserver reload`            | Reloads the plugin configuration.                                            | `autoserver.command.reload` |
-| `/autoserver help`              | Displays the help menu with available commands.                              | `autoserver.command.help`   |
-| `/autoserver status [<server>]` | Checks the status of a specified server or all servers if none is specified. | `autoserver.command.status` |
-| `/autoserver start <server>`    | Run the start sequence for a server                                          | `autoserver.command.start`  |
-| `/autoserver info <server>`     | Displays detailed information about a specified server.                      | `autoserver.command.info`   |
+| Command                         | Description                                                                  | Permission                    |
+|---------------------------------|------------------------------------------------------------------------------|-------------------------------|
+| (No command, base permission)   | Base permission required to access any command                               | `autoserver.base`             |
+| `/autoserver reload`            | Reloads the plugin configuration.                                            | `autoserver.command.reload`   |
+| `/autoserver help`              | Displays the help menu with available commands.                              | `autoserver.command.help`     |
+| `/autoserver status [<server>]` | Checks the status of a specified server or all servers if none is specified. | `autoserver.command.status`   |
+| `/autoserver start <server>`    | Run the start sequence for a server                                          | `autoserver.command.start`    |
+| `/autoserver info <server>`     | Displays detailed information about a specified server.                      | `autoserver.command.info`     |
+| `/autoserver version`           | Version of the plugin                                                        | `autoserver.command.version`  |
 
 ## Troubleshooting
 

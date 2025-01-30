@@ -4,13 +4,12 @@ import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import me.artificial.autoserver.velocity.AutoServer;
+import me.artificial.autoserver.velocity.ServerStatus;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 public class InfoCommand implements SubCommand {
     private final AutoServer plugin;
@@ -21,33 +20,26 @@ public class InfoCommand implements SubCommand {
 
     @Override
     public void execute(CommandSource source, String[] args) {
-        if (args.length == 2) {
-            String serverName = args[1];
-            Optional<RegisteredServer> optionalServer = plugin.getProxy().getServer(serverName);
-            if (optionalServer.isEmpty()) {
-                source.sendMessage(Component.text().content("Server not found"));
-                return;
-            }
-            RegisteredServer server = optionalServer.get();
-            CompletableFuture<Boolean> isOnlineFuture = plugin.getServerManager().isServerOnline(server);
-            boolean isOnline = false;
-            try {
-                isOnline = isOnlineFuture.get();
-            } catch (InterruptedException | ExecutionException e) {
-                plugin.getLogger().error("Error getting status of server.");
-            }
-
-            String message = buildMessage(isOnline, serverName, server);
-
-            source.sendMessage(MiniMessage.miniMessage().deserialize(message));
-        } else {
-            source.sendMessage(Component.text().content("Unknown server name. Double check spelling."));
+        if (args.length != 2) {
+            source.sendMessage(Component.text().content("Usage /autoserver info <serverName>"));
+            return;
         }
+
+        Optional<RegisteredServer> optionalServer = plugin.getProxy().getServer(args[1]);
+        if (optionalServer.isEmpty()) {
+            source.sendMessage(Component.text().content("Unknown server name. Double check spelling."));
+            return;
+        }
+        RegisteredServer server = optionalServer.get();
+        ServerStatus serverStatus = plugin.getServerManager().getServerStatus(server);
+        String message = buildMessage(server, serverStatus);
+
+        source.sendMessage(MiniMessage.miniMessage().deserialize(message));
     }
 
-    private String buildMessage(boolean isOnline, String serverName, RegisteredServer server) {
-        String statusColor = isOnline ? "green" : "red";
-        String status = isOnline ? "Online" : "Offline";
+    private String buildMessage(RegisteredServer server, ServerStatus serverStatus) {
+        String statusColor = getColorFromStatus(serverStatus);
+        String status = statusToString(serverStatus);
 
         String message = """
                 <bold>Server Info: <aqua>%s</aqua></bold>
@@ -58,7 +50,7 @@ public class InfoCommand implements SubCommand {
                 <gray>--------------------------------------</gray>
                 """;
         message = String.format(message,
-                serverName,
+                server.getServerInfo().getName(),
                 statusColor, status, statusColor,
                 server.getServerInfo().getAddress().getAddress(),
                 server.getServerInfo().getAddress().getPort());
@@ -80,5 +72,28 @@ public class InfoCommand implements SubCommand {
                     .filter(name -> name.toLowerCase().startsWith(part)).toList();
         }
         return List.of();
+    }
+
+    @Override
+    public String help() {
+        return "Show more details about the server";
+    }
+
+    private String statusToString(ServerStatus status) {
+        return switch (status) {
+            case ServerStatus.RUNNING -> "Online";
+            case STOPPED -> "Offline";
+            case STARTING -> "Starting";
+            case UNKNOWN -> "Unknown";
+        };
+    }
+
+    private String getColorFromStatus(ServerStatus status) {
+        return switch (status) {
+            case ServerStatus.RUNNING -> "green";
+            case ServerStatus.STOPPED -> "gray";
+            case ServerStatus.STARTING -> "yellow";
+            case ServerStatus.UNKNOWN -> "red";
+        };
     }
 }

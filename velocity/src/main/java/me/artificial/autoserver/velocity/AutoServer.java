@@ -152,8 +152,12 @@ public class AutoServer {
         return config;
     }
 
+    public Optional<String> getVersion() {
+        return pluginContainer.getDescription().getVersion();
+    }
+
     private void notifyUpdates() {
-        Optional<String> versionOptional = pluginContainer.getDescription().getVersion();
+        Optional<String> versionOptional = getVersion();
         if (versionOptional.isPresent()) {
             try {
                 String currentVersion = versionOptional.get();

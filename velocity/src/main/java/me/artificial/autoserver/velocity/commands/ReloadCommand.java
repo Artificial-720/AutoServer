@@ -16,6 +16,11 @@ public class ReloadCommand implements SubCommand {
 
     @Override
     public void execute(CommandSource source, String[] args) {
+        if (args.length != 1) {
+            source.sendMessage(Component.text().content("Usage /autoserver reload"));
+            return;
+        }
+
         plugin.getLogger().info("Reloading configuration...");
         plugin.getConfig().reloadConfig();
         plugin.getLogger().info("Configuration reloaded.");
@@ -30,5 +35,10 @@ public class ReloadCommand implements SubCommand {
     @Override
     public List<String> suggest(SimpleCommand.Invocation invocation) {
         return List.of();
+    }
+
+    @Override
+    public String help() {
+        return "Reloads the config file";
     }
 }

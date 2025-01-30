@@ -16,10 +16,11 @@ public class AutoServerCommand implements SimpleCommand {
         subCommands = new HashMap<>();
 
         subCommands.put("reload", new ReloadCommand(plugin));
-        subCommands.put("help", new HelpCommand());
+        subCommands.put("help", new HelpCommand(subCommands));
         subCommands.put("status", new StatusCommand(plugin));
         subCommands.put("info", new InfoCommand(plugin));
         subCommands.put("start", new StartCommand(plugin));
+        subCommands.put("version", new VersionCommand(plugin));
     }
 
     @Override
@@ -28,7 +29,7 @@ public class AutoServerCommand implements SimpleCommand {
         String[] args = invocation.arguments();
 
         if (args.length == 0) {
-            source.sendMessage(Component.text("Usage: /autoserver reload"));
+            subCommands.get("help").execute(source, args);
             return;
         }
 
@@ -81,7 +82,5 @@ public class AutoServerCommand implements SimpleCommand {
         }
 
         return true;
-
-        //return invocation.source().hasPermission("autoserver.command." + invocation.arguments()[0].toLowerCase());
     }
 }
