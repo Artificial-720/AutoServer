@@ -59,4 +59,9 @@ public class StartCommand implements SubCommand {
         }
         return List.of();
     }
+
+    @Override
+    public String help() {
+        return "Run the start sequence for a server";
+    }
 }

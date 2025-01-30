@@ -23,10 +23,17 @@ public class StatusCommand implements SubCommand {
 
     @Override
     public void execute(CommandSource source, String[] args) {
+        if (!(args.length == 2 || args.length == 1)) {
+            source.sendMessage(Component.text().content("Usage /autoserver status [serverName]"));
+            return;
+        }
+
         TextComponent.Builder builder = Component.text().content("Server Status").decorate(TextDecoration.BOLD);
 
         if (args.length == 2) {
-            if (!handleSingleServer(source, args[1], builder)) {
+            if (!handleSingleServer(builder, args[1])) {
+                plugin.getLogger().info("Error getting server, name is probably wrong");
+                source.sendMessage(Component.text().content("Failed to check status, double check spelling."));
                 return;
             }
         } else {
@@ -36,17 +43,14 @@ public class StatusCommand implements SubCommand {
         source.sendMessage(builder.build());
     }
 
-    private boolean handleSingleServer(CommandSource source, String serverName, TextComponent.Builder builder) {
+    private boolean handleSingleServer(TextComponent.Builder builder, String serverName) {
         Optional<RegisteredServer> optionalServer = plugin.getProxy().getServer(serverName);
-        if (optionalServer.isPresent()) {
-            ServerStatus status = plugin.getServerManager().getServerStatus(optionalServer.get());
-            TextColor color = getColorFromStatus(status);
-            builder.appendNewline().append(Component.text().content(serverName).color(color));
-        } else {
-            plugin.getLogger().info("Error getting server, name is probably wrong");
-            source.sendMessage(Component.text().content("Failed to check status, double check spelling."));
+        if (optionalServer.isEmpty()) {
             return false;
         }
+        ServerStatus status = plugin.getServerManager().getServerStatus(optionalServer.get());
+        TextColor color = getColorFromStatus(status);
+        builder.appendNewline().append(Component.text().content(serverName).color(color));
         return true;
     }
 
@@ -77,8 +81,16 @@ public class StatusCommand implements SubCommand {
         String[] args = invocation.arguments();
         if (args.length == 2) {
             String part = args[1].toLowerCase();
-            return plugin.getProxy().getAllServers().stream().map(s -> s.getServerInfo().getName()).filter(name -> name.toLowerCase().startsWith(part)).toList();
+            return plugin.getProxy().getAllServers().stream()
+                    .map(s -> s.getServerInfo().getName())
+                    .filter(name -> name.toLowerCase().startsWith(part))
+                    .toList();
         }
         return List.of();
+    }
+
+    @Override
+    public String help() {
+        return "Show status of all servers or a specific";
     }
 }

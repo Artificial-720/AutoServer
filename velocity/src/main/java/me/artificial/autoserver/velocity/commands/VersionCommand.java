@@ -3,6 +3,7 @@ package me.artificial.autoserver.velocity.commands;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import me.artificial.autoserver.velocity.AutoServer;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.util.List;
@@ -19,6 +20,11 @@ public class VersionCommand implements SubCommand {
 
     @Override
     public void execute(CommandSource source, String[] args) {
+        if (args.length != 1) {
+            source.sendMessage(Component.text().content("Usage /autoserver version"));
+            return;
+        }
+
         source.sendMessage(MiniMessage.miniMessage().deserialize(
                 "<white>Version: </white><yellow>" + version + "</yellow>"
         ));
@@ -32,5 +38,10 @@ public class VersionCommand implements SubCommand {
     @Override
     public List<String> suggest(SimpleCommand.Invocation invocation) {
         return List.of();
+    }
+
+    @Override
+    public String help() {
+        return "Version of the plugin";
     }
 }
