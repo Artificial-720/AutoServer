@@ -64,6 +64,10 @@ public class Configuration {
         return config.getLong("servers." + server.getServerInfo().getName() + ".startupDelay", DEFAULT_START_UP_DELAY);
     }
 
+    public boolean checkForUpdate() {
+        return config.getBoolean("checkForUpdates", true);
+    }
+
     private Toml loadConfig(Path path) {
         File configFile = new File(path.toFile(), "config.toml");
 
