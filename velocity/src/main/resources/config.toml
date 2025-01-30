@@ -2,6 +2,10 @@
 # Author: Artificial-720
 # For issues or suggestions, please submit them at: https://github.com/Artificial-720/AutoServer/issues
 
+# Should AutoServer check for updates?
+checkForUpdates = true
+
+
 [messages]
 # Prefix added to all messages displayed to the player.
 prefix = "[<green>AutoServer<reset>] "

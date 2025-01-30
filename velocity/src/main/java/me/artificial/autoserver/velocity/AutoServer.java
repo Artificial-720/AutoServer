@@ -8,6 +8,7 @@ import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
+import com.velocitypowered.api.plugin.PluginContainer;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -33,6 +34,7 @@ public class AutoServer {
     private final ProxyServer proxy;
     private final Logger logger;
     private final Path dataDirectory;
+    private final PluginContainer pluginContainer;
     private Configuration config;
 
     public ServerManager getServerManager() {
@@ -43,11 +45,12 @@ public class AutoServer {
 
     @SuppressWarnings("unused")
     @Inject
-    public AutoServer(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
+    public AutoServer(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory, PluginContainer pluginContainer) {
         // DON'T ACCESS VELOCITY API HERE
         this.proxy = proxy;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
+        this.pluginContainer = pluginContainer;
     }
 
     public static void sendMessageToPlayer(Player player, String message) {
@@ -78,6 +81,10 @@ public class AutoServer {
         CommandManager commandManager = proxy.getCommandManager();
         CommandMeta commandMeta = commandManager.metaBuilder("autoserver").aliases("as").plugin(this).build();
         proxy.getCommandManager().register(commandMeta, new AutoServerCommand(this));
+
+        if (config.checkForUpdate()) {
+            notifyUpdates();
+        }
 
 //        serverManager.refreshServerCache(proxy.getAllServers());
         logger.info("Successfully enabled AutoServer");
@@ -143,5 +150,30 @@ public class AutoServer {
 
     public Configuration getConfig() {
         return config;
+    }
+
+    private void notifyUpdates() {
+        Optional<String> versionOptional = pluginContainer.getDescription().getVersion();
+        if (versionOptional.isPresent()) {
+            try {
+                String currentVersion = versionOptional.get();
+                UpdateChecker updateChecker = new UpdateChecker(logger, currentVersion);
+
+                if (updateChecker.isUpdateAvailable()) {
+                    logger.info("======================================== ");
+                    logger.info(" A new update is available!");
+                    logger.info(" Current Version: {}", currentVersion);
+                    logger.info(" Latest Version: {}", updateChecker.latest());
+                    logger.info(" Download the latest version for new features and fixes.");
+                    logger.info("========================================");
+                } else {
+                    logger.info("You are using the latest version ({}). No updates available.", currentVersion);
+                }
+            } catch (Exception ignored) {
+                logger.warn("Could not check for updates, check your connection.");
+            }
+        } else {
+            logger.warn("Unable to determine the current version. Update check skipped.");
+        }
     }
 }
