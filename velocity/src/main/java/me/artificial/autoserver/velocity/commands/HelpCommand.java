@@ -18,6 +18,7 @@ public class HelpCommand implements SubCommand {
                    status    Show status of a server
                    start     Run the start sequence for a server
                    info      Show more details about the server
+                   version   Version of the plugin
                 """));
     }
 
