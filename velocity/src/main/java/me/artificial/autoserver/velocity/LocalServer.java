@@ -20,7 +20,7 @@ public class LocalServer implements Server {
         return CompletableFuture.supplyAsync(() -> {
             Optional<String> command = plugin.getConfig().getStartCommand(server);
             if (command.isEmpty()) {
-                plugin.getLogger().error("Command not found for {}", server.getServerInfo().getName());
+                plugin.getLogger().error("Start command not found for {}", server.getServerInfo().getName());
                 throw new RuntimeException("Command not found");
             }
 
@@ -28,7 +28,7 @@ public class LocalServer implements Server {
             if (CommandRunner.runCommand(command.get())) {
                 return "Command ran successfully";
             } else {
-                plugin.getLogger().error("Failed to run command for server {}", server.getServerInfo().getName());
+                plugin.getLogger().error("Failed to run start command for server {}", server.getServerInfo().getName());
                 throw new RuntimeException("Failed to run command");
             }
         });
@@ -36,6 +36,20 @@ public class LocalServer implements Server {
 
     @Override
     public CompletableFuture<String> stop() {
-        return null;
+        return CompletableFuture.supplyAsync(() -> {
+            Optional<String> command = plugin.getConfig().getStopCommand(server);
+            if (command.isEmpty()) {
+                plugin.getLogger().error("Stop command not found for {}", server.getServerInfo().getName());
+                throw new RuntimeException("Command not found");
+            }
+
+            plugin.getLogger().info("Running stop command for {} server. '{}'", server.getServerInfo().getName(), command.get());
+            if (CommandRunner.runCommand(command.get())) {
+                return "Command ran successfully";
+            } else {
+                plugin.getLogger().error("Failed to run stop command for server {}", server.getServerInfo().getName());
+                throw new RuntimeException("Failed to run command");
+            }
+        });
     }
 }

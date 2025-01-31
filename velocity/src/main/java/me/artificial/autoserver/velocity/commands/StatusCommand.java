@@ -7,8 +7,6 @@ import me.artificial.autoserver.velocity.AutoServer;
 import me.artificial.autoserver.velocity.ServerStatus;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 
 import java.util.List;
@@ -49,26 +47,15 @@ public class StatusCommand implements SubCommand {
             return false;
         }
         ServerStatus status = plugin.getServerManager().getServerStatus(optionalServer.get());
-        TextColor color = getColorFromStatus(status);
-        builder.appendNewline().append(Component.text().content(serverName).color(color));
+        builder.appendNewline().append(Component.text().content(serverName).color(status.getColor()));
         return true;
     }
 
     private void handleAllServers(TextComponent.Builder builder) {
         for (RegisteredServer server : plugin.getProxy().getAllServers()) {
             ServerStatus status = plugin.getServerManager().getServerStatus(server);
-            TextColor color = getColorFromStatus(status);
-            builder.appendNewline().append(Component.text().content(server.getServerInfo().getName()).color(color));
+            builder.appendNewline().append(Component.text().content(server.getServerInfo().getName()).color(status.getColor()));
         }
-    }
-
-    private TextColor getColorFromStatus(ServerStatus status) {
-        return switch (status) {
-            case ServerStatus.RUNNING -> NamedTextColor.GREEN;
-            case ServerStatus.STOPPED -> NamedTextColor.GRAY;
-            case ServerStatus.STARTING -> NamedTextColor.YELLOW;
-            case ServerStatus.UNKNOWN -> NamedTextColor.RED;
-        };
     }
 
     @Override

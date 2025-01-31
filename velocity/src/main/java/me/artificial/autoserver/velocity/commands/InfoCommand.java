@@ -38,8 +38,8 @@ public class InfoCommand implements SubCommand {
     }
 
     private String buildMessage(RegisteredServer server, ServerStatus serverStatus) {
-        String statusColor = getColorFromStatus(serverStatus);
-        String status = statusToString(serverStatus);
+        String statusColor = serverStatus.getColor().toString();
+        String status = serverStatus.getDisplayName();
 
         String message = """
                 <bold>Server Info: <aqua>%s</aqua></bold>
@@ -77,23 +77,5 @@ public class InfoCommand implements SubCommand {
     @Override
     public String help() {
         return "Show more details about the server";
-    }
-
-    private String statusToString(ServerStatus status) {
-        return switch (status) {
-            case ServerStatus.RUNNING -> "Online";
-            case STOPPED -> "Offline";
-            case STARTING -> "Starting";
-            case UNKNOWN -> "Unknown";
-        };
-    }
-
-    private String getColorFromStatus(ServerStatus status) {
-        return switch (status) {
-            case ServerStatus.RUNNING -> "green";
-            case ServerStatus.STOPPED -> "gray";
-            case ServerStatus.STARTING -> "yellow";
-            case ServerStatus.UNKNOWN -> "red";
-        };
     }
 }

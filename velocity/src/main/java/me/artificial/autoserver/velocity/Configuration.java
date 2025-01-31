@@ -42,6 +42,11 @@ public class Configuration {
         return Optional.ofNullable(command);
     }
 
+    public Optional<String> getStopCommand(RegisteredServer server) {
+        String command = config.getString("servers." + server.getServerInfo().getName() +  ".stop");
+        return Optional.ofNullable(command);
+    }
+
     public Optional<Boolean> isRemoteServer(RegisteredServer server) {
         Boolean remote = config.getBoolean("servers." + server.getServerInfo().getName() + ".remote");
         return Optional.ofNullable(remote);

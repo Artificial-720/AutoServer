@@ -90,9 +90,46 @@ public class ServerManager {
      * @return A CompletableFuture that completes with a success message if the server stops successfully,
      *         or completes exceptionally if an error occurs or the server is already stopped.
      */
-    @SuppressWarnings("unused")
     public CompletableFuture<String> stopServer(RegisteredServer server) {
-        return CompletableFuture.completedFuture("Don't have function yet " + server.getServerInfo().getName());
+        // Check if already stopping
+        String serverName = server.getServerInfo().getName();
+        if (getServerStatus(server).isStopping()) {
+            logger.info("Server {} is already stopping", serverName);
+            return CompletableFuture.completedFuture("Server is already stopping.");
+        }
+
+        getServerStatus(server).setStatus(ServerStatus.Status.STOPPING);
+
+        logger.info("Attempting to stop server: {}", serverName);
+        Server serverStrategy = getServerStrategy(server);
+
+        // Do a long ping to check if server is actually online before trying to stop it
+        return isServerOnline(server)
+                .thenCompose(isOnline -> {
+                    if (!isOnline) {
+                        return CompletableFuture.completedFuture("Server already stopped");
+                    }
+
+                    // Finally stop the server using the given strategy
+                    return serverStrategy.stop()
+                            .thenCompose(result -> isServerOnline(server)
+                                    .thenApply(isOnline2 -> {
+                                        if (isOnline2) {
+                                            throw new RuntimeException("Failed to stop server.");
+                                        } else {
+                                            return "Server stopped.";
+                                        }
+                                    }));
+                })
+                .whenComplete((result, ex) -> {
+                    // clean up
+                    if (ex != null) {
+                        logger.error("Failed to stop server: {}", ex.getMessage());
+                        getServerStatus(server).setStatus(ServerStatus.Status.UNKNOWN);
+                    } else {
+                        getServerStatus(server).setStatus(ServerStatus.Status.STOPPED);
+                    }
+                });
     }
 
     /**
@@ -114,9 +151,9 @@ public class ServerManager {
      */
     public CompletableFuture<Boolean> isServerResponsive(RegisteredServer server) {
         String serverName = server.getServerInfo().getName();
-        ServerStatus cachedStatus = serverStatusCache.get(serverName);
+        ServerStatus cachedStatus = getServerStatus(server);
 
-        if (cachedStatus != null && cachedStatus.equals(ServerStatus.STOPPED)) {
+        if (cachedStatus.is(ServerStatus.Status.STOPPED)) {
             logger.info("Cache check for server '{}' is OFFLINE", serverName);
             return CompletableFuture.completedFuture(false);
         }
@@ -136,19 +173,16 @@ public class ServerManager {
      * @return The current status of the server (e.g., ONLINE, OFFLINE, UNKNOWN).
      */
     public ServerStatus getServerStatus(RegisteredServer server) {
-        if (startingServers.contains(server.getServerInfo().getName())) {
-            return ServerStatus.STARTING;
-        }
-        CompletableFuture<Boolean> isOnline = isServerOnline(server);
-        try {
-            if (isOnline.get()) {
-                return ServerStatus.RUNNING;
-            } else {
-                return ServerStatus.STOPPED;
+        String serverName = server.getServerInfo().getName();
+        if (!serverStatusCache.containsKey(serverName)) {
+            serverStatusCache.put(serverName, new ServerStatus());
+            try {
+                isServerOnline(server).get();
+            } catch (InterruptedException | ExecutionException ignored) {
             }
-        } catch (InterruptedException | ExecutionException e) {
-            return ServerStatus.UNKNOWN;
         }
+
+        return serverStatusCache.get(serverName);
     }
 
     /**
@@ -174,14 +208,16 @@ public class ServerManager {
         logger.info("Pinging server {}...", serverName);
         return server.ping().orTimeout(pingTimeout, TimeUnit.MILLISECONDS).thenApply(serverPing -> {
             logger.info("ping success {} is online", serverName);
-            serverStatusCache.put(serverName, ServerStatus.RUNNING);
+            if (!getServerStatus(server).isStopping()) {
+                // only update to running if not in a state of stopping
+                getServerStatus(server).setStatus(ServerStatus.Status.RUNNING);
+            }
             return true;
         }).exceptionally(e -> {
             logger.info("ping failed {} is offline", serverName);
-            if (serverStatusCache.containsKey(serverName) &&
-                    !serverStatusCache.get(serverName).equals(ServerStatus.STARTING)) {
+            if (!getServerStatus(server).isStarting()) {
                 // only update to stopped if not in a state of starting
-                serverStatusCache.put(serverName, ServerStatus.STOPPED);
+                getServerStatus(server).setStatus(ServerStatus.Status.STOPPED);
             }
             return false;
         });
