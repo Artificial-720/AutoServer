@@ -23,9 +23,10 @@ public class LocalServer implements Server {
                 plugin.getLogger().error("Start command not found for {}", server.getServerInfo().getName());
                 throw new RuntimeException("Command not found");
             }
+            Optional<String> path = plugin.getConfig().getPath(server);
 
             plugin.getLogger().info("Running start command for {} server. '{}'", server.getServerInfo().getName(), command.get());
-            if (CommandRunner.runCommand(command.get())) {
+            if (CommandRunner.runCommand(path.orElse(null), command.get())) {
                 return "Command ran successfully";
             } else {
                 plugin.getLogger().error("Failed to run start command for server {}", server.getServerInfo().getName());
@@ -42,9 +43,10 @@ public class LocalServer implements Server {
                 plugin.getLogger().error("Stop command not found for {}", server.getServerInfo().getName());
                 throw new RuntimeException("Command not found");
             }
+            Optional<String> path = plugin.getConfig().getPath(server);
 
             plugin.getLogger().info("Running stop command for {} server. '{}'", server.getServerInfo().getName(), command.get());
-            if (CommandRunner.runCommand(command.get())) {
+            if (CommandRunner.runCommand(path.orElse(null), command.get())) {
                 return "Command ran successfully";
             } else {
                 plugin.getLogger().error("Failed to run stop command for server {}", server.getServerInfo().getName());

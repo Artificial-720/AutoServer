@@ -112,14 +112,27 @@ public class ServerManager {
 
                     // Finally stop the server using the given strategy
                     return serverStrategy.stop()
-                            .thenCompose(result -> isServerOnline(server)
-                                    .thenApply(isOnline2 -> {
+                            .thenCompose(result -> {
+                                long shutdownDelay = autoServer.getConfig().getShutdownDelay(server);
+
+                                // Delay a little bit before trying to ping to give server time to stop
+                                try {
+                                    logger.info("Sleeping for {} seconds before checking if server has stopped.", shutdownDelay);
+                                    Thread.sleep(shutdownDelay * 1000);
+                                } catch (InterruptedException e) {
+                                    logger.warn("Stop delay sleep interrupted: {}", e.getMessage());
+                                    Thread.currentThread().interrupt();
+                                }
+
+
+                                return isServerOnline(server).thenApply(isOnline2 -> {
                                         if (isOnline2) {
                                             throw new RuntimeException("Failed to stop server.");
                                         } else {
                                             return "Server stopped.";
                                         }
-                                    }));
+                                    });
+                            });
                 })
                 .whenComplete((result, ex) -> {
                     // clean up
