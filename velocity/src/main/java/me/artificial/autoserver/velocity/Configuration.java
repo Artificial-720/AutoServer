@@ -20,10 +20,12 @@ public class Configuration {
 
     public Configuration(Path dataDirectory) {
         this.dataDirectory = dataDirectory;
-        reloadConfig();
     }
 
-    public void reloadConfig() {
+    /**
+     * Reloads the config from disk
+     */
+    public void reloadConfig() throws Exception{
         config = loadConfig(dataDirectory);
     }
 

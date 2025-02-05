@@ -20,6 +20,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -74,6 +75,15 @@ public class AutoServer {
         // velocity starting up (register event listeners here)
         logger.info("Loading configuration...");
         config = new Configuration(dataDirectory);
+        try {
+            config.reloadConfig();
+        } catch (Exception e) {
+            logger.error("Failed to load config! Stopping plugin initialization.");
+            logger.error("");
+            logger.error(e.getMessage());
+            logger.error("");
+            throw new RuntimeException("Failed to load config! Stopping plugin initialization.");
+        }
         logger.info("Configuration Loaded");
 
         serverManager = new ServerManager(this);
