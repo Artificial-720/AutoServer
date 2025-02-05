@@ -220,14 +220,14 @@ public class ServerManager {
         String serverName = server.getServerInfo().getName();
         logger.info("Pinging server {}...", serverName);
         return server.ping().orTimeout(pingTimeout, TimeUnit.MILLISECONDS).thenApply(serverPing -> {
-            logger.info("ping success {} is online", serverName);
+            logger.info("ping success {} is {}online{}", serverName, Ansi.GREEN, Ansi.RESET);
             if (!getServerStatus(server).isStopping()) {
                 // only update to running if not in a state of stopping
                 getServerStatus(server).setStatus(ServerStatus.Status.RUNNING);
             }
             return true;
         }).exceptionally(e -> {
-            logger.info("ping failed {} is offline", serverName);
+            logger.info("ping failed {} is {}offline{}", serverName, Ansi.RED, Ansi.RESET);
             if (!getServerStatus(server).isStarting()) {
                 // only update to stopped if not in a state of starting
                 getServerStatus(server).setStatus(ServerStatus.Status.STOPPED);
