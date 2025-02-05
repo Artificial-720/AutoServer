@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 
 public class CommandRunner {
     public static boolean runCommand(String command) {
@@ -40,7 +41,17 @@ public class CommandRunner {
 
     public static boolean runCommand(String path, String command) {
         ProcessBuilder processBuilder;
-        List<String> tokenCommand = new ArrayList<>(List.of(command.split(" ")));
+        // Split on whitespace, ignoring whitespace inside quotes (single or double)
+        List<String> tokenCommand = new ArrayList<>(List.of(command.split("\\s+(?=(?:[^'\"]*['\"][^'\"]*['\"])*[^'\"]*$)")));
+
+        // Remove surrounding quotes
+        ListIterator<String> iterator = tokenCommand.listIterator();
+        while (iterator.hasNext()) {
+            String word = iterator.next();
+            iterator.set(word.replaceAll("^\"|\"$|^'|'$", ""));
+        }
+
+        System.out.println(tokenCommand);
 
         processBuilder = new ProcessBuilder(tokenCommand);
 
