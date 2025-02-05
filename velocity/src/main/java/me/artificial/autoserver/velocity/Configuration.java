@@ -25,7 +25,7 @@ public class Configuration {
     /**
      * Reloads the config from disk
      */
-    public void reloadConfig() throws Exception{
+    public void reloadConfig() throws RuntimeException{
         config = loadConfig(dataDirectory);
     }
 
@@ -85,7 +85,7 @@ public class Configuration {
         return config.getBoolean("checkForUpdates", true);
     }
 
-    private Toml loadConfig(Path path) {
+    private Toml loadConfig(Path path) throws RuntimeException {
         File configFile = new File(path.toFile(), "config.toml");
 
         try {

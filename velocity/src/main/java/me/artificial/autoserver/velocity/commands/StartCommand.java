@@ -5,6 +5,7 @@ import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import me.artificial.autoserver.velocity.AutoServer;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,8 +35,8 @@ public class StartCommand implements SubCommand {
 
         plugin.getServerManager().startServer(server).whenComplete((result, ex) -> {
             if (ex != null) { // error occurred
-                plugin.getLogger().info("Error: {}", ex.getMessage());
-                source.sendMessage(Component.text().content(ex.getMessage()));
+                plugin.getLogger().error("Error: {}", ex.getMessage());
+                source.sendMessage(Component.text().content("Failed to start server: " + ex.getMessage()).color(NamedTextColor.RED));
             } else {
                 plugin.getLogger().info("Message: {}", result);
                 source.sendMessage(Component.text().content(result));

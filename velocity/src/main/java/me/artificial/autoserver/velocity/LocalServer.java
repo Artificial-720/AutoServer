@@ -26,12 +26,8 @@ public class LocalServer implements Server {
             Optional<String> path = plugin.getConfig().getPath(server);
 
             plugin.getLogger().info("Running start command for {} server. '{}'", server.getServerInfo().getName(), command.get());
-            if (CommandRunner.runCommand(path.orElse(null), command.get())) {
-                return "Command ran successfully";
-            } else {
-                plugin.getLogger().error("Failed to run start command for server {}", server.getServerInfo().getName());
-                throw new RuntimeException("Failed to run command");
-            }
+            CommandRunner.runCommand(path.orElse(null), command.get());
+            return "Command ran successfully";
         });
     }
 
@@ -46,12 +42,8 @@ public class LocalServer implements Server {
             Optional<String> path = plugin.getConfig().getPath(server);
 
             plugin.getLogger().info("Running stop command for {} server. '{}'", server.getServerInfo().getName(), command.get());
-            if (CommandRunner.runCommand(path.orElse(null), command.get())) {
-                return "Command ran successfully";
-            } else {
-                plugin.getLogger().error("Failed to run stop command for server {}", server.getServerInfo().getName());
-                throw new RuntimeException("Failed to run command");
-            }
+            CommandRunner.runCommand(path.orElse(null), command.get());
+            return "Command ran successfully";
         });
     }
 }

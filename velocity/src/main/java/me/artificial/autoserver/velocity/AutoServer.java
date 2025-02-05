@@ -20,7 +20,6 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
