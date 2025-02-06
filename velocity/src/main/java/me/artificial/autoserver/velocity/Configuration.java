@@ -12,6 +12,7 @@ import java.util.Optional;
 
 public class Configuration {
     private static final long DEFAULT_START_UP_DELAY = 60L;
+    private static final long DEFAULT_SHUTDOWN_DELAY = 5L;
     private static final int DEFAULT_REMOTE_PORT = 8080;
 
     private final Path dataDirectory;
@@ -19,10 +20,12 @@ public class Configuration {
 
     public Configuration(Path dataDirectory) {
         this.dataDirectory = dataDirectory;
-        reloadConfig();
     }
 
-    public void reloadConfig() {
+    /**
+     * Reloads the config from disk
+     */
+    public void reloadConfig() throws RuntimeException{
         config = loadConfig(dataDirectory);
     }
 
@@ -37,8 +40,18 @@ public class Configuration {
         return Optional.of(prefix + message);
     }
 
+    public Optional<String> getPath(RegisteredServer server) {
+        String path = config.getString("servers." + server.getServerInfo().getName() +  ".workingDirectory");
+        return Optional.ofNullable(path);
+    }
+
     public Optional<String> getStartCommand(RegisteredServer server) {
         String command = config.getString("servers." + server.getServerInfo().getName() +  ".start");
+        return Optional.ofNullable(command);
+    }
+
+    public Optional<String> getStopCommand(RegisteredServer server) {
+        String command = config.getString("servers." + server.getServerInfo().getName() +  ".stop");
         return Optional.ofNullable(command);
     }
 
@@ -64,11 +77,15 @@ public class Configuration {
         return config.getLong("servers." + server.getServerInfo().getName() + ".startupDelay", DEFAULT_START_UP_DELAY);
     }
 
+    public long getShutdownDelay(RegisteredServer server) {
+        return config.getLong("servers." + server.getServerInfo().getName() + ".shutdownDelay", DEFAULT_SHUTDOWN_DELAY);
+    }
+
     public boolean checkForUpdate() {
         return config.getBoolean("checkForUpdates", true);
     }
 
-    private Toml loadConfig(Path path) {
+    private Toml loadConfig(Path path) throws RuntimeException {
         File configFile = new File(path.toFile(), "config.toml");
 
         try {

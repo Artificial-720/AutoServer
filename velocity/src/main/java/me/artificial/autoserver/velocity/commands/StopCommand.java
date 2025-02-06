@@ -10,17 +10,17 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import java.util.List;
 import java.util.Optional;
 
-public class StartCommand implements SubCommand {
+public class StopCommand implements SubCommand {
     private final AutoServer plugin;
 
-    public StartCommand(AutoServer plugin) {
+    public StopCommand(AutoServer plugin) {
         this.plugin = plugin;
     }
 
     @Override
     public void execute(CommandSource source, String[] args) {
         if (args.length != 2) {
-            source.sendMessage(Component.text().content("Usage /autoserver start <serverName>"));
+            source.sendMessage(Component.text().content("Usage /autoserver stop <serverName>"));
             return;
         }
 
@@ -31,12 +31,12 @@ public class StartCommand implements SubCommand {
             return;
         }
         RegisteredServer server = optionalServer.get();
-        source.sendMessage(Component.text().content("Starting server \"" + serverName + "\"... Please wait."));
+        source.sendMessage(Component.text().content("Stopping server \"" + serverName + "\"... Please wait."));
 
-        plugin.getServerManager().startServer(server).whenComplete((result, ex) -> {
+        plugin.getServerManager().stopServer(server).whenComplete((result, ex) -> {
             if (ex != null) { // error occurred
-                plugin.getLogger().error("Error: {}", ex.getMessage());
-                source.sendMessage(Component.text().content("Failed to start server: " + ex.getMessage()).color(NamedTextColor.RED));
+                plugin.getLogger().info("Error: {}", ex.getMessage());
+                source.sendMessage(Component.text().content("Failed to stop server: " + ex.getMessage()).color(NamedTextColor.RED));
             } else {
                 plugin.getLogger().info("Message: {}", result);
                 source.sendMessage(Component.text().content(result));
@@ -46,7 +46,7 @@ public class StartCommand implements SubCommand {
 
     @Override
     public boolean hasPermission(SimpleCommand.Invocation invocation) {
-        return invocation.source().hasPermission("autoserver.command.start");
+        return invocation.source().hasPermission("autoserver.command.stop");
     }
 
     @Override
@@ -63,6 +63,6 @@ public class StartCommand implements SubCommand {
 
     @Override
     public String help() {
-        return "Run the start sequence for a server";
+        return "Run the stop sequence for a server";
     }
 }

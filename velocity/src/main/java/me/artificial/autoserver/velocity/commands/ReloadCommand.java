@@ -4,6 +4,7 @@ import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import me.artificial.autoserver.velocity.AutoServer;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 import java.util.List;
 
@@ -22,9 +23,14 @@ public class ReloadCommand implements SubCommand {
         }
 
         plugin.getLogger().info("Reloading configuration...");
-        plugin.getConfig().reloadConfig();
-        plugin.getLogger().info("Configuration reloaded.");
-        source.sendMessage(Component.text("Configuration reloaded."));
+        try {
+            plugin.getConfig().reloadConfig();
+            plugin.getLogger().info("Configuration reloaded.");
+            source.sendMessage(Component.text("Configuration reloaded."));
+        } catch (Exception e) {
+            plugin.getLogger().warn("Failed to load config! Fix errors and try again: {}", e.getMessage());
+            source.sendMessage(Component.text("Configuration failed to reloaded.").color(NamedTextColor.RED));
+        }
     }
 
     @Override

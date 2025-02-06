@@ -27,10 +27,6 @@ import java.util.concurrent.ExecutionException;
 
 @Plugin(id = "autoserver")
 public class AutoServer {
-
-    private static final String RESET = "\u001B[0m";
-    private static final String RED = "\u001B[31m";
-    private static final String GREEN = "\u001B[32m";
     private final ProxyServer proxy;
     private final Logger logger;
     private final Path dataDirectory;
@@ -74,6 +70,15 @@ public class AutoServer {
         // velocity starting up (register event listeners here)
         logger.info("Loading configuration...");
         config = new Configuration(dataDirectory);
+        try {
+            config.reloadConfig();
+        } catch (Exception e) {
+            logger.error("Failed to load config! Stopping plugin initialization.");
+            logger.error("");
+            logger.error(e.getMessage());
+            logger.error("");
+            throw new RuntimeException("Failed to load config! Stopping plugin initialization.");
+        }
         logger.info("Configuration Loaded");
 
         serverManager = new ServerManager(this);
@@ -108,11 +113,11 @@ public class AutoServer {
         CompletableFuture<Boolean> isResponsive = serverManager.isServerResponsive(originalServer);
         try {
             if (isResponsive.get()) {
-                logger.info("Server {}{}{} is online allowing connection", GREEN, originalServerName, RESET);
+                logger.info("Server {}{}{} is online allowing connection", Ansi.GREEN, originalServerName, Ansi.RESET);
                 event.setResult(ServerPreConnectEvent.ServerResult.allowed(originalServer));
             } else {
                 // server not online need to start it
-                logger.info("Server {}{}{} is not online attempting to start server", RED, originalServerName, RESET);
+                logger.info("Server {}{}{} is not online attempting to start server", Ansi.RED, originalServerName, Ansi.RESET);
                 event.setResult(ServerPreConnectEvent.ServerResult.denied());
 
                 sendMessageToPlayer(event.getPlayer(), config.getMessage("starting").orElse(""), originalServerName);

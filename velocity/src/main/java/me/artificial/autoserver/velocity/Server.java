@@ -15,6 +15,5 @@ public interface Server {
      *
      * @return A CompletableFuture that completes with a success message or exceptionally if the process fails.
      */
-    @SuppressWarnings("unused")
     CompletableFuture<String> stop();
 }
