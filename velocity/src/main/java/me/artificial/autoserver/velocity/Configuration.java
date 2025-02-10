@@ -45,6 +45,11 @@ public class Configuration {
         return Optional.ofNullable(path);
     }
 
+    public Optional<Boolean> getPreserveQuotes(RegisteredServer server) {
+        Boolean quotes = config.getBoolean("servers." + server.getServerInfo().getName() +  ".preserveQuotes");
+        return Optional.ofNullable(quotes);
+    }
+
     public Optional<String> getStartCommand(RegisteredServer server) {
         String command = config.getString("servers." + server.getServerInfo().getName() +  ".start");
         return Optional.ofNullable(command);
