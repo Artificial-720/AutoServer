@@ -39,8 +39,8 @@ public class CommandRunner {
         return false;
     }
 
-    public static void runCommand(String path, String command) throws RuntimeException {
-        ProcessBuilder processBuilder = getProcessBuilder(path, command);
+    public static void runCommand(String path, String command, Boolean preserveQuotes) throws RuntimeException {
+        ProcessBuilder processBuilder = getProcessBuilder(path, command, preserveQuotes);
 //        processBuilder.inheritIO(); // this didn't work to see the error when directory is missing
 
         // maybe use the exit code for the process
@@ -83,16 +83,20 @@ public class CommandRunner {
 
     }
 
-    private static ProcessBuilder getProcessBuilder(String path, String command) {
+    private static ProcessBuilder getProcessBuilder(String path, String command, Boolean preserveQuotes) {
         ProcessBuilder processBuilder;
+        String os = System.getProperty("os.name").toLowerCase();
         // Split on whitespace, ignoring whitespace inside quotes (single or double)
         List<String> tokenCommand = new ArrayList<>(List.of(command.split("\\s+(?=(?:[^'\"]*['\"][^'\"]*['\"])*[^'\"]*$)")));
 
-        // Remove surrounding quotes
-        ListIterator<String> iterator = tokenCommand.listIterator();
-        while (iterator.hasNext()) {
-            String word = iterator.next();
-            iterator.set(word.replaceAll("^\"|\"$|^'|'$", ""));
+        // Remove surrounding quotes if linux and keep if windows
+        // new setting PRESERVE_QUOTES, that ignores the OS check
+        if ((preserveQuotes == null && !os.contains("win")) || (preserveQuotes != null && !preserveQuotes)) {
+            ListIterator<String> iterator = tokenCommand.listIterator();
+            while (iterator.hasNext()) {
+                String word = iterator.next();
+                iterator.set(word.replaceAll("^\"|\"$|^'|'$", ""));
+            }
         }
 
         processBuilder = new ProcessBuilder(tokenCommand);

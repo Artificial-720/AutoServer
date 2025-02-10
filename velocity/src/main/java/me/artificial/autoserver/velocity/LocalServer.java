@@ -24,9 +24,10 @@ public class LocalServer implements Server {
                 throw new RuntimeException("Command not found");
             }
             Optional<String> path = plugin.getConfig().getPath(server);
+            Optional<Boolean> preserveQuotes = plugin.getConfig().getPreserveQuotes(server);
 
             plugin.getLogger().info("Running start command for {} server. '{}'", server.getServerInfo().getName(), command.get());
-            CommandRunner.runCommand(path.orElse(null), command.get());
+            CommandRunner.runCommand(path.orElse(null), command.get(), preserveQuotes.orElse(null));
             return "Command ran successfully";
         });
     }
@@ -40,9 +41,10 @@ public class LocalServer implements Server {
                 throw new RuntimeException("Command not found");
             }
             Optional<String> path = plugin.getConfig().getPath(server);
+            Optional<Boolean> preserveQuotes = plugin.getConfig().getPreserveQuotes(server);
 
             plugin.getLogger().info("Running stop command for {} server. '{}'", server.getServerInfo().getName(), command.get());
-            CommandRunner.runCommand(path.orElse(null), command.get());
+            CommandRunner.runCommand(path.orElse(null), command.get(), preserveQuotes.orElse(null));
             return "Command ran successfully";
         });
     }
