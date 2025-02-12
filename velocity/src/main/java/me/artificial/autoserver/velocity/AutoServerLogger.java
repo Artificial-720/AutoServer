@@ -10,7 +10,6 @@ import org.slf4j.event.Level;
 - **Warn** – Recoverable issues that might cause unexpected behavior (e.g., switching to a backup server).
 - **Error** – Serious issues requiring user intervention but not causing a full system failure.
  */
-
 public class AutoServerLogger {
     private final Logger logger;
     private final AutoServer plugin;

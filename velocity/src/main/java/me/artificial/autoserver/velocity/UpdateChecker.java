@@ -50,7 +50,7 @@ public class UpdateChecker {
         if (response.statusCode() == 200) {
             return JsonParser.parseString(response.body()).getAsJsonArray();
         } else {
-            logger.error("Request failed with status code: {}", response.statusCode());
+            logger.debug("Request failed with status code: {}", response.statusCode());
         }
 
         return null;

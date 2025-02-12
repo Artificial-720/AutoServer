@@ -35,7 +35,6 @@ public class StopCommand implements SubCommand {
 
         plugin.getServerManager().stopServer(server).whenComplete((result, ex) -> {
             if (ex != null) { // error occurred
-                plugin.getLogger().info("Error: {}", ex.getMessage());
                 source.sendMessage(Component.text().content("Failed to stop server: " + ex.getMessage()).color(NamedTextColor.RED));
             } else {
                 plugin.getLogger().info("Message: {}", result);

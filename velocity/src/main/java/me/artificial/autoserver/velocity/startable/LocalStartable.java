@@ -1,16 +1,18 @@
-package me.artificial.autoserver.velocity;
+package me.artificial.autoserver.velocity.startable;
 
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import me.artificial.autoserver.common.CommandRunner;
+import me.artificial.autoserver.velocity.AnsiColors;
+import me.artificial.autoserver.velocity.AutoServer;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-public class LocalServer implements Server {
+public class LocalStartable implements Startable {
     private final AutoServer plugin;
     private final RegisteredServer server;
 
-    LocalServer(AutoServer plugin, RegisteredServer server) {
+    public LocalStartable(AutoServer plugin, RegisteredServer server) {
         this.plugin = plugin;
         this.server = server;
     }
@@ -26,7 +28,7 @@ public class LocalServer implements Server {
             Optional<String> path = plugin.getConfig().getPath(server);
             Optional<Boolean> preserveQuotes = plugin.getConfig().getPreserveQuotes(server);
 
-            plugin.getLogger().info("Running start command for {} server. '{}'", server.getServerInfo().getName(), command.get());
+            plugin.getLogger().info("Running start command for {} server. \"{}{}{}\"", server.getServerInfo().getName(), AnsiColors.YELLOW, command.get(), AnsiColors.RESET);
             CommandRunner.runCommand(path.orElse(null), command.get(), preserveQuotes.orElse(null));
             return "Command ran successfully";
         });
@@ -43,7 +45,7 @@ public class LocalServer implements Server {
             Optional<String> path = plugin.getConfig().getPath(server);
             Optional<Boolean> preserveQuotes = plugin.getConfig().getPreserveQuotes(server);
 
-            plugin.getLogger().info("Running stop command for {} server. '{}'", server.getServerInfo().getName(), command.get());
+            plugin.getLogger().info("Running stop command for {} server. \"{}{}{}\"", server.getServerInfo().getName(), AnsiColors.YELLOW, command.get(), AnsiColors.RESET);
             CommandRunner.runCommand(path.orElse(null), command.get(), preserveQuotes.orElse(null));
             return "Command ran successfully";
         });

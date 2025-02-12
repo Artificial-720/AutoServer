@@ -38,9 +38,9 @@ public class AutoServer {
     public AutoServer(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory, PluginContainer pluginContainer) {
         // DON'T ACCESS VELOCITY API HERE
         this.proxy = proxy;
+        this.config = new Configuration(dataDirectory);
         this.logger = new AutoServerLogger(this, logger);
         this.pluginContainer = pluginContainer;
-        this.config = new Configuration(dataDirectory);
     }
 
     public static void sendMessageToPlayer(Player player, String message) {
@@ -78,7 +78,7 @@ public class AutoServer {
 
         CommandManager commandManager = proxy.getCommandManager();
         CommandMeta commandMeta = commandManager.metaBuilder("autoserver").aliases("as").plugin(this).build();
-        proxy.getCommandManager().register(commandMeta, new AutoServerCommand(this));
+        commandManager.register(commandMeta, new AutoServerCommand(this));
 
         if (config.checkForUpdate()) {
             notifyUpdates();
@@ -101,16 +101,16 @@ public class AutoServer {
         RegisteredServer originalServer = event.getOriginalServer(); // Server trying to connect too
         //RegisteredServer previousServer = event.getPreviousServer(); // Server was connected too
         String originalServerName = originalServer.getServerInfo().getName();
-        logger.info("Player {} attempting to join {}", event.getPlayer().getUsername(), originalServerName);
+        logger.debug("Player {} attempting to join {}", event.getPlayer().getUsername(), originalServerName);
 
         CompletableFuture<Boolean> isResponsive = serverManager.isServerResponsive(originalServer);
         try {
             if (isResponsive.get()) {
-                logger.info("Server {}{}{} is online allowing connection", Ansi.GREEN, originalServerName, Ansi.RESET);
+                logger.info("Server {}{}{} is online allowing connection", AnsiColors.GREEN, originalServerName, AnsiColors.RESET);
                 event.setResult(ServerPreConnectEvent.ServerResult.allowed(originalServer));
             } else {
                 // server not online need to start it
-                logger.info("Server {}{}{} is not online attempting to start server", Ansi.RED, originalServerName, Ansi.RESET);
+                logger.info("Server {}{}{} is not online attempting to start server", AnsiColors.RED, originalServerName, AnsiColors.RESET);
                 event.setResult(ServerPreConnectEvent.ServerResult.denied());
 
                 sendMessageToPlayer(event.getPlayer(), config.getMessage("starting").orElse(""), originalServerName);
@@ -128,6 +128,7 @@ public class AutoServer {
                 });
             }
         } catch (InterruptedException | ExecutionException e) {
+            logger.error("Error occurred while determining the status of server {}", originalServerName);
             logger.error("Exception: {}", e.getMessage(), e);
             event.setResult(ServerPreConnectEvent.ServerResult.denied());
         }
@@ -135,7 +136,7 @@ public class AutoServer {
 
         long endTime = System.nanoTime();
         long duration = (endTime - startTime);
-        logger.info("onServerPreConnect completed in: {}", duration);
+        logger.debug("onServerPreConnect completed in: {}", duration);
     }
 
     public AutoServerLogger getLogger() {

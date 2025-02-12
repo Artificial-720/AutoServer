@@ -35,7 +35,6 @@ public class StartCommand implements SubCommand {
 
         plugin.getServerManager().startServer(server).whenComplete((result, ex) -> {
             if (ex != null) { // error occurred
-                plugin.getLogger().error("Error: {}", ex.getMessage());
                 source.sendMessage(Component.text().content("Failed to start server: " + ex.getMessage()).color(NamedTextColor.RED));
             } else {
                 plugin.getLogger().info("Message: {}", result);

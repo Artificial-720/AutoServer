@@ -1,6 +1,8 @@
-package me.artificial.autoserver.velocity;
+package me.artificial.autoserver.velocity.startable;
 
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import me.artificial.autoserver.velocity.AutoServer;
+import me.artificial.autoserver.velocity.NetworkCommands;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -8,12 +10,12 @@ import java.net.Socket;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-public class RemoteServer implements Server {
+public class RemoteStartable implements Startable {
     private static final int TIMEOUT = 5000;
     private final AutoServer plugin;
     private final RegisteredServer server;
 
-    RemoteServer(AutoServer plugin, RegisteredServer server) {
+    public RemoteStartable(AutoServer plugin, RegisteredServer server) {
         this.plugin = plugin;
         this.server = server;
     }
@@ -36,12 +38,12 @@ public class RemoteServer implements Server {
                  PrintWriter writer = new PrintWriter(output, true)) {
 
                 socket.setSoTimeout(TIMEOUT);
-                plugin.getLogger().info("Attempting to send BOOT command");
+                plugin.getLogger().debug("Attempting to send BOOT command");
                 writer.println(NetworkCommands.BOOT);
 
                 String response;
                 while ((response = reader.readLine()) != null) {
-                    plugin.getLogger().info("Server Response: {}", response.trim());
+                    plugin.getLogger().debug("Server Response: {}", response.trim());
 
                     // process response
                     if (response.isBlank()) {
@@ -55,7 +57,7 @@ public class RemoteServer implements Server {
                     }
                     String status = parts[0].trim();
                     String message = parts[1].trim();
-                    plugin.getLogger().info("Response Status: {}, Message: {}", status, message);
+                    plugin.getLogger().debug("Response Status: {}, Message: {}", status, message);
 
                     switch (status.toUpperCase()) {
                         case NetworkCommands.ACKNOWLEDGED: // Backend server received the boot command and has acknowledged it
