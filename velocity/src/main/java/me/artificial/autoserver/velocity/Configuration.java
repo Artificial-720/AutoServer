@@ -20,12 +20,13 @@ public class Configuration {
 
     public Configuration(Path dataDirectory) {
         this.dataDirectory = dataDirectory;
+        this.config = new Toml();
     }
 
     /**
      * Reloads the config from disk
      */
-    public void reloadConfig() throws RuntimeException{
+    public void reloadConfig() throws RuntimeException {
         config = loadConfig(dataDirectory);
     }
 
@@ -88,6 +89,10 @@ public class Configuration {
 
     public boolean checkForUpdate() {
         return config.getBoolean("checkForUpdates", true);
+    }
+
+    public String getLogLevel() {
+        return config.getString("logging.level", "INFO").toUpperCase();
     }
 
     private Toml loadConfig(Path path) throws RuntimeException {

@@ -74,3 +74,9 @@ port = 8080
 # Time in seconds to wait before attempting to connect a player.
 # For a remote server probably want a longer delay
 startupDelay = 120
+
+
+# Configure logging here
+[logging]
+# Logging level: possible values - TRACE, DEBUG, INFO, WARN, ERROR
+level = "INFO"

@@ -28,15 +28,9 @@ import java.util.concurrent.ExecutionException;
 @Plugin(id = "autoserver")
 public class AutoServer {
     private final ProxyServer proxy;
-    private final Logger logger;
-    private final Path dataDirectory;
+    private final AutoServerLogger logger;
     private final PluginContainer pluginContainer;
-    private Configuration config;
-
-    public ServerManager getServerManager() {
-        return serverManager;
-    }
-
+    private final Configuration config;
     private ServerManager serverManager;
 
     @SuppressWarnings("unused")
@@ -44,9 +38,9 @@ public class AutoServer {
     public AutoServer(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory, PluginContainer pluginContainer) {
         // DON'T ACCESS VELOCITY API HERE
         this.proxy = proxy;
-        this.logger = logger;
-        this.dataDirectory = dataDirectory;
+        this.logger = new AutoServerLogger(this, logger);
         this.pluginContainer = pluginContainer;
+        this.config = new Configuration(dataDirectory);
     }
 
     public static void sendMessageToPlayer(Player player, String message) {
@@ -69,7 +63,6 @@ public class AutoServer {
     public void onProxyInitialization(ProxyInitializeEvent event) {
         // velocity starting up (register event listeners here)
         logger.info("Loading configuration...");
-        config = new Configuration(dataDirectory);
         try {
             config.reloadConfig();
         } catch (Exception e) {
@@ -145,7 +138,7 @@ public class AutoServer {
         logger.info("onServerPreConnect completed in: {}", duration);
     }
 
-    public Logger getLogger() {
+    public AutoServerLogger getLogger() {
         return logger;
     }
 
@@ -155,6 +148,10 @@ public class AutoServer {
 
     public Configuration getConfig() {
         return config;
+    }
+
+    public ServerManager getServerManager() {
+        return serverManager;
     }
 
     public Optional<String> getVersion() {

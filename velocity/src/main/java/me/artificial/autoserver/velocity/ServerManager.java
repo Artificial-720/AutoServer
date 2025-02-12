@@ -2,7 +2,6 @@ package me.artificial.autoserver.velocity;
 
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
-import org.slf4j.Logger;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -18,7 +17,7 @@ import java.util.concurrent.TimeUnit;
  * and checking the status of servers.
  */
 public class ServerManager {
-    private final Logger logger;
+    private final AutoServerLogger logger;
     private final AutoServer autoServer;
     private final HashSet<String> startingServers = new HashSet<>();
     private final HashMap<Player, String> queuePlayers = new HashMap<>();
