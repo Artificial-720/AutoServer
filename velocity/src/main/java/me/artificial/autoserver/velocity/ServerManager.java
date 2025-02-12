@@ -2,7 +2,9 @@ package me.artificial.autoserver.velocity;
 
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
-import org.slf4j.Logger;
+import me.artificial.autoserver.velocity.startable.LocalStartable;
+import me.artificial.autoserver.velocity.startable.RemoteStartable;
+import me.artificial.autoserver.velocity.startable.Startable;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -18,15 +20,15 @@ import java.util.concurrent.TimeUnit;
  * and checking the status of servers.
  */
 public class ServerManager {
-    private final Logger logger;
-    private final AutoServer autoServer;
+    private final AutoServerLogger logger;
+    private final AutoServer plugin;
     private final HashSet<String> startingServers = new HashSet<>();
     private final HashMap<Player, String> queuePlayers = new HashMap<>();
     private final Map<String, ServerStatus> serverStatusCache = new ConcurrentHashMap<>();
 
-    public ServerManager(AutoServer autoServer) {
-        this.autoServer = autoServer;
-        this.logger = autoServer.getLogger();
+    public ServerManager(AutoServer plugin) {
+        this.plugin = plugin;
+        this.logger = plugin.getLogger();
     }
 
     /**
@@ -40,7 +42,7 @@ public class ServerManager {
         // Check if already starting
         String serverName = server.getServerInfo().getName();
         if (startingServers.contains(serverName)) {
-            logger.info("Server {} is already starting", serverName);
+            logger.debug("Server {} is already starting", serverName);
             return CompletableFuture.completedFuture("Server is already starting.");
         }
 
@@ -49,7 +51,7 @@ public class ServerManager {
         logger.info("Attempting to start server: {}", serverName);
 
         // Determine start strategy
-        Server serverStrategy = getServerStrategy(server);
+        Startable startableStrategy = getServerStrategy(server);
 
         // Do a long ping to check if server is actually offline before trying to start it
         return isServerOnline(server)
@@ -61,7 +63,7 @@ public class ServerManager {
                     }
 
                     // Finally start the server using the given strategy
-                    return serverStrategy.start()
+                    return startableStrategy.start()
                             .thenCompose(result -> waitForServerToBecomeResponsive(server)
                                     .thenApply(isResponsive -> {
                                         if (isResponsive) {
@@ -94,14 +96,14 @@ public class ServerManager {
         // Check if already stopping
         String serverName = server.getServerInfo().getName();
         if (getServerStatus(server).isStopping()) {
-            logger.info("Server {} is already stopping", serverName);
+            logger.debug("Server {} is already stopping", serverName);
             return CompletableFuture.completedFuture("Server is already stopping.");
         }
 
         getServerStatus(server).setStatus(ServerStatus.Status.STOPPING);
 
         logger.info("Attempting to stop server: {}", serverName);
-        Server serverStrategy = getServerStrategy(server);
+        Startable startableStrategy = getServerStrategy(server);
 
         // Do a long ping to check if server is actually online before trying to stop it
         return isServerOnline(server)
@@ -111,9 +113,9 @@ public class ServerManager {
                     }
 
                     // Finally stop the server using the given strategy
-                    return serverStrategy.stop()
+                    return startableStrategy.stop()
                             .thenCompose(result -> {
-                                long shutdownDelay = autoServer.getConfig().getShutdownDelay(server);
+                                long shutdownDelay = plugin.getConfig().getShutdownDelay(server);
 
                                 // Delay a little bit before trying to ping to give server time to stop
                                 try {
@@ -167,11 +169,11 @@ public class ServerManager {
         ServerStatus cachedStatus = getServerStatus(server);
 
         if (cachedStatus.is(ServerStatus.Status.STOPPED)) {
-            logger.info("Cache check for server '{}' is OFFLINE", serverName);
+            logger.debug("Cache check for server '{}' is OFFLINE", serverName);
             return CompletableFuture.completedFuture(false);
         }
         if (!server.getPlayersConnected().isEmpty()) {
-            logger.info("Players detected on server '{}', assuming ONLINE", serverName);
+            logger.debug("Players detected on server '{}', assuming ONLINE", serverName);
             return CompletableFuture.completedFuture(true);
         }
 
@@ -208,26 +210,26 @@ public class ServerManager {
         queuePlayers.put(player, serverName);
     }
 
-    private Server getServerStrategy(RegisteredServer server) {
-        Optional<Boolean> remote = autoServer.getConfig().isRemoteServer(server);
+    private Startable getServerStrategy(RegisteredServer server) {
+        Optional<Boolean> remote = plugin.getConfig().isRemoteServer(server);
         if (remote.isPresent() && remote.get()) {
-            return new RemoteServer(autoServer, server);
+            return new RemoteStartable(plugin, server);
         }
-        return new LocalServer(autoServer, server);
+        return new LocalStartable(plugin, server);
     }
 
     private CompletableFuture<Boolean> pingServer(RegisteredServer server, int pingTimeout) {
         String serverName = server.getServerInfo().getName();
-        logger.info("Pinging server {}...", serverName);
+        logger.debug("Pinging server {}...", serverName);
         return server.ping().orTimeout(pingTimeout, TimeUnit.MILLISECONDS).thenApply(serverPing -> {
-            logger.info("ping success {} is {}online{}", serverName, Ansi.GREEN, Ansi.RESET);
+            logger.debug("ping success {} is {}online{}", serverName, AnsiColors.GREEN, AnsiColors.RESET);
             if (!getServerStatus(server).isStopping()) {
                 // only update to running if not in a state of stopping
                 getServerStatus(server).setStatus(ServerStatus.Status.RUNNING);
             }
             return true;
         }).exceptionally(e -> {
-            logger.info("ping failed {} is {}offline{}", serverName, Ansi.RED, Ansi.RESET);
+            logger.debug("ping failed {} is {}offline{}", serverName, AnsiColors.RED, AnsiColors.RESET);
             if (!getServerStatus(server).isStarting()) {
                 // only update to stopped if not in a state of starting
                 getServerStatus(server).setStatus(ServerStatus.Status.STOPPED);
@@ -246,11 +248,11 @@ public class ServerManager {
         return CompletableFuture.supplyAsync(() ->{
             int retires = 10;
             int delayBetweenRetries = 5; // seconds
-            long startupDelay = autoServer.getConfig().getStartUpDelay(server);
+            long startupDelay = plugin.getConfig().getStartUpDelay(server);
 
             // Delay a little bit before trying to ping to give server time to start
             try {
-                logger.info("Sleeping for {} seconds before checking if server started.", startupDelay);
+                logger.info("Sleeping for {} seconds before checking if server has started.", startupDelay);
                 Thread.sleep(startupDelay * 1000);
             } catch (InterruptedException e) {
                 logger.warn("Ping delay sleep interrupted: {}", e.getMessage());
@@ -261,13 +263,13 @@ public class ServerManager {
             while (retires > 0) {
                 try {
                     if (pingServer(server, 5000).get()) {
-                        logger.info("Server {} is online. Moving queued players...", server.getServerInfo().getName());
+                        logger.info("Server {} is {}online{}. Moving queued players...", server.getServerInfo().getName(), AnsiColors.GREEN, AnsiColors.RESET);
                         return true;
                     } else {
-                        logger.warn("Failed to ping server {}. Retrying in {} seconds.", server.getServerInfo().getName(), delayBetweenRetries);
+                        logger.debug("Failed to ping server {}. Retrying in {} seconds.", server.getServerInfo().getName(), delayBetweenRetries);
                     }
                 } catch (ExecutionException | InterruptedException e) {
-                    logger.warn("Failed to ping server {}: {}. Retrying in {} seconds.", server.getServerInfo().getName(), e.getMessage(), delayBetweenRetries);
+                    logger.debug("Failed to ping server {}: {}. Retrying in {} seconds.", server.getServerInfo().getName(), e.getMessage(), delayBetweenRetries);
                 }
 
                 retires--;
@@ -295,13 +297,13 @@ public class ServerManager {
             if (serverName.equals(server.getServerInfo().getName())) {
                 if (player.isActive()) {
                     // Notify the player
-                    AutoServer.sendMessageToPlayer(player, autoServer.getConfig().getMessage("notify").orElse(""));
+                    AutoServer.sendMessageToPlayer(player, plugin.getConfig().getMessage("notify").orElse(""));
 
                     // Schedule the connection request to run after 5 seconds
-                    autoServer.getProxy().getScheduler().buildTask(autoServer, () ->
+                    plugin.getProxy().getScheduler().buildTask(plugin, () ->
                             player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
                                 if (throwable != null) {
-                                    AutoServer.sendMessageToPlayer(player, autoServer.getConfig().getMessage("failed").orElse(""), serverName);
+                                    AutoServer.sendMessageToPlayer(player, plugin.getConfig().getMessage("failed").orElse(""), serverName);
                                     logger.error("Failed to connect player to server {}", throwable.getMessage());
                                 } else {
                                     logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);

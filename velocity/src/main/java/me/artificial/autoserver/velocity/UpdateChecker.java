@@ -3,7 +3,6 @@ package me.artificial.autoserver.velocity;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -14,11 +13,11 @@ import java.net.http.HttpResponse;
 
 public class UpdateChecker {
 
-    private final Logger logger;
+    private final AutoServerLogger logger;
     private final String currentVersion;
     private String latest;
 
-    UpdateChecker(Logger logger, String version) {
+    UpdateChecker(AutoServerLogger logger, String version) {
         this.logger = logger;
         this.currentVersion = version;
     }
@@ -51,7 +50,7 @@ public class UpdateChecker {
         if (response.statusCode() == 200) {
             return JsonParser.parseString(response.body()).getAsJsonArray();
         } else {
-            logger.error("Request failed with status code: {}", response.statusCode());
+            logger.debug("Request failed with status code: {}", response.statusCode());
         }
 
         return null;

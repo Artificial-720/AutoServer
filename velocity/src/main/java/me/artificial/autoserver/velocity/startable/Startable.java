@@ -1,8 +1,8 @@
-package me.artificial.autoserver.velocity;
+package me.artificial.autoserver.velocity.startable;
 
 import java.util.concurrent.CompletableFuture;
 
-public interface Server {
+public interface Startable {
     /**
      * Starts the server asynchronously.
      *

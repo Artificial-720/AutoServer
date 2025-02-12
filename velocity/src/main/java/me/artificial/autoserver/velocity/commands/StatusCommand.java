@@ -30,7 +30,7 @@ public class StatusCommand implements SubCommand {
 
         if (args.length == 2) {
             if (!handleSingleServer(builder, args[1])) {
-                plugin.getLogger().info("Error getting server, name is probably wrong");
+                plugin.getLogger().warn("Error getting server, name is probably wrong");
                 source.sendMessage(Component.text().content("Failed to check status, double check spelling."));
                 return;
             }
