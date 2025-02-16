@@ -3,5 +3,6 @@ plugins {
 }
 
 dependencies {
-
+// https://mavenlibs.com/maven/dependency/org.yaml/snakeyaml
+    implementation 'org.yaml:snakeyaml:2.1'
 }
