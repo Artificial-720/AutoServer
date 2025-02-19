@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class BootListener {
+    private final static String PROMPT = "> ";
     private final static int CLIENT_TIMEOUT = 5000;
     private final static int SERVER_RETRIES = 10;
     private final static int DELAY_BETWEEN_RETIRES = 5000; // 5 seconds
@@ -20,6 +21,8 @@ public class BootListener {
     private BackendConfig config = null;
     private ServerSocket serverSocket = null;
     private volatile boolean running = true;
+    private Thread socketThread;
+    private Thread cliThread;
 
     public static void main(String[] args) {
         BootListener bootListener = new BootListener();
@@ -33,20 +36,19 @@ public class BootListener {
 
         sendBannerMessage();
 
-        new Thread(this::startSocketServer).start();
+        socketThread = new Thread(this::socketServerLoop);
+        cliThread = new Thread(this::cliLoop);
 
-        // Start loop for user cli input
-        BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
-        while (running) {
-            System.out.print("> ");
-            try {
-                String command = r.readLine();
-                processCliCommand(command);
-            } catch (IOException ignored) {
-            }
-        }
+        socketThread.start();
+        cliThread.start();
 
-        cleanup();
+        // Wait for both treads to finish
+        try {
+            cliThread.join();
+            socketThread.join();
+        } catch (InterruptedException ignored) {}
+
+        System.out.println("Backend Listener exited.");
     }
 
     private boolean initialize() {
@@ -96,26 +98,28 @@ public class BootListener {
         System.out.println("Current date: " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date()));
         System.out.println("Config path: " + config.getConfigPath());
         System.out.println("Boot Listener listening on port: " + port);
+        System.out.println("Type \"help\" for list of cli commands.");
         System.out.println("================================================");
     }
 
-    private void cleanup() {
-        running = false;
-
-        System.out.println("Shutting down server listener...");
-        try {
-            if (serverSocket != null && !serverSocket.isClosed()) {
-                serverSocket.close();
-                System.out.println("Server socket closed.");
-            }
-        } catch (IOException e) {
-            System.err.println("Error closing server socket: " + e.getMessage());
+    private void cliLoop() {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        System.out.print(PROMPT);
+        while (running) {
+            try {
+                if (reader.ready()) {
+                    String command = reader.readLine();
+                    processCliCommand(command);
+                    if (running) {
+                        System.out.print(PROMPT);
+                    }
+                }
+                Thread.sleep(100); // Avoid hogging CPU
+            } catch (Exception ignored) {}
         }
-        // stop client threads
-        clientHandlers.shutdownNow();
     }
 
-    private void startSocketServer() {
+    private void socketServerLoop() {
         while (running) {
             try {
                 Socket clientSocket = serverSocket.accept();
@@ -136,41 +140,81 @@ public class BootListener {
     }
 
     private void handleClient(Socket clientSocket) {
-        try (InputStream input = clientSocket.getInputStream(); OutputStream output = clientSocket.getOutputStream(); BufferedReader reader = new BufferedReader(new InputStreamReader(input)); PrintWriter writer = new PrintWriter(output, true)) {
+        Boolean enabled = config.getBoolean("security.enabled", true);
+        String secret = config.getString("security.secret");
+        if (enabled != null && enabled && secret == null) {
+            System.out.println("Security is enabled, but the required setting \"security.secret\" is missing. Please add the setting and restart.");
+            try {
+                clientSocket.close();
+            } catch (IOException e) {
+                System.err.println("Error closing client socket: " + e.getMessage());
+            }
+            System.out.println("Client socket closed successfully");
+            return;
+        }
+
+        try (InputStream input = clientSocket.getInputStream();
+             OutputStream output = clientSocket.getOutputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+             PrintWriter writer = new PrintWriter(output, true)) {
             System.out.println("Client Thread waiting for command");
             // Read the client's message
             String command = reader.readLine();
-            System.out.println("Received command: " + command);
-            processRemoteCommand(command, writer);
+
+            if (enabled != null && enabled) {
+                System.out.println("Client Thread waiting for signature");
+                String receivedSignature = reader.readLine();
+
+                System.out.println("Command: " + command);
+                System.out.println("Signature: " + receivedSignature);
+
+                // verify
+                boolean isValid = HMAC.verifyMessage(command, receivedSignature, secret);
+                if (isValid) {
+                    System.out.println("Authenticated command: " + command);
+                    processRemoteCommand(command, writer);
+                } else {
+                    System.out.println("Authentication failed! Rejecting command.");
+                }
+            } else {
+                System.out.println("Received command: " + command);
+                processRemoteCommand(command, writer);
+            }
         } catch (IOException e) {
             System.err.println("Error handling client: " + e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         } finally {
             try {
+                Thread.sleep(50);  // Short delay before closing
                 clientSocket.close();
                 System.out.println("Client socket closed successfully");
             } catch (IOException e) {
                 System.err.println("Error closing client socket: " + e.getMessage());
+            } catch (InterruptedException e) {
+                System.out.println("InterruptedException: " + e.getMessage());
+                Thread.currentThread().interrupt(); // Keep the interrupt going
             }
         }
     }
 
     private void processRemoteCommand(String command, PrintWriter writer) {
         switch (command) {
-            case "BOOT_SERVER":
-                respond(writer, "ACKNOWLEDGED: Boot command received. Starting backend server...");
+            case NetworkCommands.BOOT:
+                respond(writer, NetworkCommands.buildMessage(NetworkCommands.ACKNOWLEDGED, "Boot command received. Running start command..."));
                 if (startBackendServer()) {
-                    respond(writer, "COMPLETED: Backend server started.");
-                    running = false;
+                    respond(writer, NetworkCommands.buildMessage(NetworkCommands.COMPLETED, "Backend server starting."));
+                    stopAll();
                 } else {
-                    respond(writer, "FAILED: Failed to start backend server.");
+                    respond(writer, NetworkCommands.buildMessage(NetworkCommands.FAILED, "Failed to start backend server."));
                 }
                 break;
-            case "SHUTDOWN_BOOT_LISTENER":
-                respond(writer, "SUCCESS: Shutting down boot listener.");
-                running = false;
+            case NetworkCommands.SHUTDOWN_BOOT_LISTENER:
+                respond(writer, NetworkCommands.buildMessage(NetworkCommands.SUCCESS, "Shutting down boot listener."));
+                stopAll();
                 break;
             default:
-                respond(writer, "ERROR: Invalid command.");
+                respond(writer, NetworkCommands.buildMessage(NetworkCommands.ERROR, "Invalid command."));
         }
     }
 
@@ -186,19 +230,19 @@ public class BootListener {
                 System.out.println("  help   - this message");
                 System.out.println("  start  - start the backend server");
                 System.out.println("  stop   - stop the boot listener");
-                System.out.println("  reload - reload the config.yml file");
+                System.out.println("  reload - reload the config.yml file (port is not hot reloadable)");
                 break;
             case "reload":
                 config.reload();
                 break;
             case "stop":
-                running = false;
+                stopAll();
                 break;
             case "start":
                 System.out.println("Starting backend server...");
                 if (startBackendServer()) {
                     System.out.println("Command ran successfully.");
-                    running = false;
+                    stopAll();
                 } else {
                     System.out.println("Failed to start backend server.");
                 }
@@ -206,6 +250,31 @@ public class BootListener {
             default:
                 System.out.println("Unknown command.");
         }
+    }
+
+    private void stopAll() {
+        // doing this on a thread so that we don't
+        // interrupt this function from finishing
+        new Thread(() -> {
+            running = false;
+
+            // Close server socket
+            System.out.println("Shutting down server listener...");
+            try {
+                if (serverSocket != null && !serverSocket.isClosed()) {
+                    serverSocket.close();
+                    System.out.println("Server socket closed.");
+                }
+            } catch (IOException e) {
+                System.err.println("Error closing server socket: " + e.getMessage());
+            }
+            System.out.println("Stopping client threads");
+            // stop client threads
+            clientHandlers.shutdownNow();
+
+            cliThread.interrupt(); // Interrupt CLI thread (if blocked)
+            socketThread.interrupt(); // Interrupt Socket thread (if blocked)
+        }).start();
     }
 
     private boolean startBackendServer() {
@@ -220,7 +289,7 @@ public class BootListener {
 
         try {
             CommandRunner.runCommand(workingDirectory, command, preserveQuotes);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException ignored) {
             return false;
         }
 

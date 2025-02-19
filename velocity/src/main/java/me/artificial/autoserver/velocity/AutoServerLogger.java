@@ -42,8 +42,9 @@ public class AutoServerLogger {
     private void log(Level level, String message, Object... args) {
         if (shouldLog(level)) {
             switch (level) {
-                case TRACE -> logger.trace(message, args);
-                case DEBUG -> logger.debug(message, args);
+                // moved these to info because they were not being logged
+                case TRACE -> logger.info(message, args);
+                case DEBUG -> logger.info(message, args);
                 case INFO -> logger.info(message, args);
                 case WARN -> logger.warn(message, args);
                 case ERROR -> logger.error(message, args);

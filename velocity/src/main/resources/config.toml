@@ -48,7 +48,9 @@ notify = "Server is ready you will be connected in 5 seconds..."
 # Controls whether leading and trailing quotes are preserved,
 # with quotes being removed by default on non-Windows systems unless explicitly set to `true`. (default: null)
 #preserveQuotes = false
-
+# Specifies whether the REMOTE server should use secuirty on message (default: true).
+# Note this requires copying the exact value from Velocity's forwarding.secret to the remote config
+#security = true
 
 # Example Configuration for a LOCAL server named "survival".
 [servers.survival]
@@ -74,6 +76,9 @@ port = 8080
 # Time in seconds to wait before attempting to connect a player.
 # For a remote server probably want a longer delay
 startupDelay = 120
+# Enable security for the conection with this backend server.
+# If not provided the default is true.
+security = true
 
 
 # Configure logging here

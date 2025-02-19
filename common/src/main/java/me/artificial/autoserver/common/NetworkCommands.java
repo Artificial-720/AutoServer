@@ -1,4 +1,4 @@
-package me.artificial.autoserver.velocity;
+package me.artificial.autoserver.common;
 
 public class NetworkCommands {
     /*
@@ -22,4 +22,8 @@ public class NetworkCommands {
     public static final String SUCCESS = "SUCCESS";
     /** Backend server encountered an error */
     public static final String ERROR = "ERROR";
+
+    public static String buildMessage(String status, String message) {
+        return String.format("%s: %s", status, message);
+    }
 }

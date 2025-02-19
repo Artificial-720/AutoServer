@@ -24,3 +24,16 @@ bootListener:
   runJarCommand: "java -jar %jarName%"
   # Port on which the Boot Listener listens for incoming connections (used when the server is stopped)
   port: 8080
+
+
+## Security Settings
+security:
+  # Enables HMAC security for message transmission between the backend and the Velocity plugin.
+  # If this setting is omitted, it defaults to "true".
+  enabled: true
+
+  # The shared secret key used for HMAC authentication.
+  # This must be the same as the "forwarding.secret" in your Velocity proxy's configuration file.
+  # To ensure proper authentication, copy the value directly from Velocity's config file.
+  # Populate this with the exact value from Velocity's forwarding.secret
+#  secret: ""

@@ -47,8 +47,12 @@ public class BackendConfig {
     }
 
     public Boolean getBoolean(String path) {
+        return getBoolean(path, null);
+    }
+
+    public Boolean getBoolean(String path, Boolean def) {
         Object value = followPath(path);
-        return (value instanceof Boolean) ? (Boolean) value : null;
+        return (value instanceof Boolean) ? (Boolean) value : def;
     }
 
     public Integer getInt(String path) {
