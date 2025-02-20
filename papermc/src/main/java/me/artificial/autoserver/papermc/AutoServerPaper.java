@@ -26,9 +26,6 @@ public final class AutoServerPaper extends JavaPlugin {
             pluginCommand.setTabCompleter(commander);
         }
 
-        // start tcp server to listen
-        // message velocity that backend is online
-
         getLogger().info("Successfully enabled AutoServer Backend");
     }
 
