@@ -7,80 +7,84 @@ import java.util.List;
 import java.util.ListIterator;
 
 public class CommandRunner {
-    public static boolean runCommand(String command) {
-        String os = System.getProperty("os.name").toLowerCase();
-        String path = "\"" + System.getProperty("user.dir").replace("\\", "/") + "\"";
-        ProcessBuilder processBuilder;
 
-        if (os.contains("win")) {
-            System.out.println("Windows Detected");
-            processBuilder = new ProcessBuilder("cmd.exe", "/c", "start", "\"\"", "/D", path, "cmd", "/c", command);
-        } else {
-            System.out.println("Linux/Unix Detected");
-            processBuilder = new ProcessBuilder("bash", "-c", String.format(
-                    "nohup %s > output.log 2>&1 &",
-                    command
-            ));
+    public static class CommandResult {
+        private final boolean started;
+        private final String errorMessage;
+        private final String path;
+        private final String command;
+        private final Process process;
+
+        public CommandResult(boolean started, String errorMessage, String path, String command, Process process) {
+            this.started = started;
+            this.errorMessage = errorMessage;
+            this.path = path;
+            this.command = command;
+            this.process = process;
         }
 
-        try {
-            System.out.println("Executing Command: " + String.join(" ", processBuilder.command()));
-            Process process = processBuilder.start();
-
-            System.out.println("Process started with PID: " + process.pid());
-            System.out.println("Process exited with code: " + process.waitFor());
-            return true;
-        } catch (IOException e) {
-            System.err.println("IO error while executing the command: " + e.getMessage());
-        } catch (InterruptedException e) {
-            System.err.println("Command execution was interrupted: " + e.getMessage());
-            Thread.currentThread().interrupt();
+        public boolean failedToStart() {
+            return !started;
         }
-        return false;
+
+        public String getErrorMessage() {
+            return errorMessage;
+        }
+
+        public boolean isTerminated() {
+            return !process.isAlive();
+        }
+
+        public String getProcessOutput() {
+            assert !process.isAlive() : "Must check that CommandResult.isTerminated() before calling getProcessOutput.";
+            try {
+                return new String(process.getInputStream().readAllBytes());
+            } catch (IOException ignored) {}
+            return "";
+        }
+
+        @Override
+        public String toString() {
+            return "CommandResult{" +
+                    "started=" + started +
+                    ", errorMessage='" + errorMessage + '\'' +
+                    ", processId=" + process.pid() +
+                    ", path=" + path +
+                    ", command=" + command +
+                    '}';
+        }
     }
 
-    public static void runCommand(String path, String command, Boolean preserveQuotes) throws RuntimeException {
+    public static CommandResult runCommand(String path, String command, Boolean preserveQuotes) {
         ProcessBuilder processBuilder = getProcessBuilder(path, command, preserveQuotes);
-//        processBuilder.inheritIO(); // this didn't work to see the error when directory is missing
 
-        // maybe use the exit code for the process
-
+        boolean started = false;
+        Process process = null;
+        String errorMsg = null;
+        String commandParsed = String.join(" ", processBuilder.command());
 
         // Run the command
         try {
-            System.out.println("Executing Command: " + String.join(" ", processBuilder.command()));
-            Process process = processBuilder.start();
-
-            System.out.println("Process started with PID: " + process.pid());
-//            System.out.println("Process exited with code: " + process.waitFor());
-//            process.waitFor(10, TimeUnit.SECONDS);
-//            could use this to check if the process exits right away, probably error if it doesn't do anything right away
+            process = processBuilder.start();
+            started = true;
         } catch (NullPointerException e) {
             // if an element of the command list is null
-            System.err.println("element of command is null");
-            throw new RuntimeException(e.getMessage());
+            errorMsg = "Element of command is null";
         } catch (IndexOutOfBoundsException e) {
             // if the command is an empty list (has size 0)
-            System.err.println("Command is empty");
-            throw new RuntimeException(e.getMessage());
+            errorMsg = "Command is empty";
         } catch (UnsupportedOperationException e) {
             // If the operating system does not support the creation of processes
-            System.err.println("Operating system does not support process creation");
-            throw new RuntimeException(e.getMessage());
+            errorMsg = "Operating system does not support process creation";
         } catch (SecurityException e) {
             // if a security manager exists and
             // its checkExec method doesn't allow creation of the subprocess
-            System.err.println("Security manager has blocked the creation of the process");
-            throw new RuntimeException(e.getMessage());
+            errorMsg = "Security manager has blocked the creation of the process";
         } catch (IOException e) {
-            System.err.println("IO error while executing the command: " + e.getMessage());
-            throw new RuntimeException(e.getMessage());
+            errorMsg = "IO error while executing the command: " + e.getMessage();
         }
-//        catch (InterruptedException e) {
-//            System.err.println("Command execution was interrupted: " + e.getMessage());
-//            Thread.currentThread().interrupt();
-//        }
 
+        return new CommandResult(started, errorMsg, path, commandParsed, process);
     }
 
     private static ProcessBuilder getProcessBuilder(String path, String command, Boolean preserveQuotes) {
@@ -100,7 +104,6 @@ public class CommandRunner {
         }
 
         processBuilder = new ProcessBuilder(tokenCommand);
-
 
         // setting the directory
         if (path != null) {

@@ -79,6 +79,11 @@ public class Configuration {
         return Optional.of(longPort.intValue());
     }
 
+    public Optional<Boolean> getSecurity(RegisteredServer server) {
+        Boolean security = config.getBoolean("servers." + server.getServerInfo().getName() + ".security");
+        return Optional.ofNullable(security);
+    }
+
     public long getStartUpDelay(RegisteredServer server) {
         return config.getLong("servers." + server.getServerInfo().getName() + ".startupDelay", DEFAULT_START_UP_DELAY);
     }

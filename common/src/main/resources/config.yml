@@ -1,0 +1,39 @@
+# AutoServer Backend Configuration File
+# Author: Artificial-720
+# For issues or suggestions, please submit them at: https://github.com/Artificial-720/AutoServer/issues
+
+
+# Starting server Settings
+server:
+  # Path to the directory where the server runs.
+  workingDirectory: "/home/user/minecraft/survival"
+  # Script or command used to start the server
+  startCommand: "bash start.sh"
+  # Controls whether leading and trailing quotes are preserved,
+  # with quotes being removed by default on non-Windows systems unless explicitly set to `true`. (default: null)
+#  preserveQuotes: true
+
+
+# Boot Listener Settings
+bootListener:
+  # Set too false to disable automatically
+  # starting the Boot Listener when server is stopped.
+  enabled: true
+  # Command template to execute the Boot Listener
+  # %jarName% placeholder gets replaced with jar filename.
+  runJarCommand: "java -jar %jarName%"
+  # Port on which the Boot Listener listens for incoming connections (used when the server is stopped)
+  port: 8080
+
+
+## Security Settings
+security:
+  # Enables HMAC security for message transmission between the backend and the Velocity plugin.
+  # If this setting is omitted, it defaults to "true".
+  enabled: true
+
+  # The shared secret key used for HMAC authentication.
+  # This must be the same as the "forwarding.secret" in your Velocity proxy's configuration file.
+  # To ensure proper authentication, copy the value directly from Velocity's config file.
+  # Populate this with the exact value from Velocity's forwarding.secret
+#  secret: ""

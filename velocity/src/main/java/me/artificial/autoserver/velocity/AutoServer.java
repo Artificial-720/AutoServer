@@ -20,7 +20,10 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -157,6 +160,16 @@ public class AutoServer {
 
     public Optional<String> getVersion() {
         return pluginContainer.getDescription().getVersion();
+    }
+
+    public String getSecret() {
+        logger.trace("Getting secret from file.");
+        try {
+            return new String(Files.readAllBytes(Paths.get("forwarding.secret"))).trim();
+        } catch (IOException e) {
+            logger.error("Failed to get secret: " + e.getMessage());
+        }
+        return null;
     }
 
     private void notifyUpdates() {

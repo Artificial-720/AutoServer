@@ -5,3 +5,9 @@ api-version: '${minecraft_version}'
 load: STARTUP
 author: '${author}'
 description: '${description}'
+
+commands:
+  autoserver:
+    description: AutoServer Backend root command.
+    usage: /autoserver <subcommand>
+    aliases: [as]
