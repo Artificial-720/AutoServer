@@ -109,7 +109,7 @@ public class BootListener {
             try {
                 if (reader.ready()) {
                     String command = reader.readLine();
-                    processCliCommand(command);
+                    processCliCommand(command.trim());
                     if (running) {
                         System.out.print(PROMPT);
                     }
