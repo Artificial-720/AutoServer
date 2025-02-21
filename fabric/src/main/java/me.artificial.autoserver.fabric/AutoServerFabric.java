@@ -58,7 +58,16 @@ public class AutoServerFabric implements ModInitializer {
 
         Boolean preserveQuotes = config.getBoolean("bootListener.preserveQuotes");
 
-        LOGGER.info("Running Command to start BootListener");
-        CommandRunner.runCommand(directoryPath, replacedCommand, preserveQuotes);
+        System.out.println("Running Command to start BootListener");
+        CommandRunner.CommandResult commandResult = CommandRunner.runCommand(directoryPath, replacedCommand, preserveQuotes);
+        if (commandResult.failedToStart()) {
+            System.err.println(commandResult.getErrorMessage());
+        }
+        if (commandResult.isTerminated()) {
+            String out = commandResult.getProcessOutput();
+            if (!out.isBlank()) {
+                System.err.println("Command exited fast might have an error here is the output: " + out);
+            }
+        }
     }
 }

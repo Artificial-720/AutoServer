@@ -61,6 +61,15 @@ public final class AutoServerPaper extends JavaPlugin {
         Boolean preserveQuotes = config.getBoolean("bootListener.preserveQuotes");
 
         getLogger().info("Running Command to start BootListener");
-        CommandRunner.runCommand(directoryPath, replacedCommand, preserveQuotes);
+        CommandRunner.CommandResult commandResult = CommandRunner.runCommand(directoryPath, replacedCommand, preserveQuotes);
+        if (commandResult.failedToStart()) {
+            getLogger().severe(commandResult.getErrorMessage());
+        }
+        if (commandResult.isTerminated()) {
+            String out = commandResult.getProcessOutput();
+            if (!out.isBlank()) {
+                getLogger().severe("Command exited fast might have an error here is the output: " + out);
+            }
+        }
     }
 }

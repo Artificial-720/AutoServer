@@ -287,10 +287,17 @@ public class BootListener {
         String workingDirectory = config.getString("server.workingDirectory");
         Boolean preserveQuotes = config.getBoolean("server.preserveQuotes");
 
-        try {
-            CommandRunner.runCommand(workingDirectory, command, preserveQuotes);
-        } catch (RuntimeException ignored) {
+        CommandRunner.CommandResult commandResult = CommandRunner.runCommand(workingDirectory, command, preserveQuotes);
+        if (commandResult.failedToStart()) {
+            System.err.println(commandResult.getErrorMessage());
             return false;
+        }
+
+        if (commandResult.isTerminated()) {
+            String out = commandResult.getProcessOutput();
+            if (!out.isBlank()) {
+                System.out.println("Command exited fast might have an error here is the output: " + out);
+            }
         }
 
         return true;
