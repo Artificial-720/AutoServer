@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.ExecutorService;
@@ -140,9 +141,9 @@ public class BootListener {
     }
 
     private void handleClient(Socket clientSocket) {
-        Boolean enabled = config.getBoolean("security.enabled", true);
+        boolean securityEnabled = config.getBoolean("security.enabled", true);
         String secret = config.getString("security.secret");
-        if (enabled != null && enabled && secret == null) {
+        if (securityEnabled && secret == null) {
             System.out.println("Security is enabled, but the required setting \"security.secret\" is missing. Please add the setting and restart.");
             try {
                 clientSocket.close();
@@ -154,33 +155,37 @@ public class BootListener {
         }
 
         try (InputStream input = clientSocket.getInputStream();
-             OutputStream output = clientSocket.getOutputStream();
-             BufferedReader reader = new BufferedReader(new InputStreamReader(input));
-             PrintWriter writer = new PrintWriter(output, true)) {
+             OutputStream output = clientSocket.getOutputStream()) {
             System.out.println("Client Thread waiting for command");
-            // Read the client's message
-            String command = reader.readLine();
 
-            if (enabled != null && enabled) {
-                System.out.println("Client Thread waiting for signature");
-                String receivedSignature = reader.readLine();
-
-                System.out.println("Command: " + command);
-                System.out.println("Signature: " + receivedSignature);
-
-                // verify
-                boolean isValid = HMAC.verifyMessage(command, receivedSignature, secret);
-                if (isValid) {
-                    System.out.println("Authenticated command: " + command);
-                    processRemoteCommand(command, writer);
-                } else {
-                    System.out.println("Authentication failed! Rejecting command.");
-                }
-            } else {
-                System.out.println("Received command: " + command);
-                processRemoteCommand(command, writer);
+            byte[] lengthBytes = new byte[4];
+            if (input.read(lengthBytes) != 4) {
+                throw new RuntimeException("Failed to read length bytes.");
             }
-        } catch (IOException e) {
+
+            ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes);
+            int totalLength = lengthBuffer.getInt();
+            System.out.println("length of total bytes received: " + totalLength);
+
+            byte[] dataBytes = new byte[totalLength];
+            if (input.read(dataBytes) != totalLength) {
+                throw new RuntimeException("Failed to read the full message.");
+            }
+
+            NetworkCommands.DecodedMessage decodedMessage = NetworkCommands.decodeData(dataBytes, securityEnabled);
+            System.out.println("Received command: " + decodedMessage);
+
+            if (decodedMessage.isMalformed()) {
+                throw new RuntimeException("Received a malformed message.");
+            }
+
+            if (decodedMessage.verify(secret)) {
+                System.out.println("Authenticated command: " + decodedMessage.getCommand());
+                processRemoteCommand(decodedMessage.getCommand(), output, securityEnabled, secret);
+            } else {
+                System.out.println("Authentication failed! Rejecting command.");
+            }
+        } catch (RuntimeException | IOException e) {
             System.err.println("Error handling client: " + e.getMessage());
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -198,29 +203,36 @@ public class BootListener {
         }
     }
 
-    private void processRemoteCommand(String command, PrintWriter writer) {
+    private void processRemoteCommand(String command, OutputStream output, Boolean securityEnabled, String secret) {
         switch (command) {
             case NetworkCommands.BOOT:
-                respond(writer, NetworkCommands.buildMessage(NetworkCommands.ACKNOWLEDGED, "Boot command received. Running start command..."));
+                respond(output, securityEnabled, secret, NetworkCommands.ACKNOWLEDGED);
                 if (startBackendServer()) {
-                    respond(writer, NetworkCommands.buildMessage(NetworkCommands.COMPLETED, "Backend server starting."));
+                    respond(output, securityEnabled, secret, NetworkCommands.COMPLETED);
                     stopAll();
                 } else {
-                    respond(writer, NetworkCommands.buildMessage(NetworkCommands.FAILED, "Failed to start backend server."));
+                    respond(output, securityEnabled, secret, NetworkCommands.FAILED);
                 }
                 break;
             case NetworkCommands.SHUTDOWN_BOOT_LISTENER:
-                respond(writer, NetworkCommands.buildMessage(NetworkCommands.SUCCESS, "Shutting down boot listener."));
+                respond(output, securityEnabled, secret, NetworkCommands.SUCCESS);
                 stopAll();
                 break;
             default:
-                respond(writer, NetworkCommands.buildMessage(NetworkCommands.ERROR, "Invalid command."));
+                respond(output, securityEnabled, secret, NetworkCommands.ERROR);
         }
     }
 
-    private void respond(PrintWriter writer, String message) {
-        System.out.println("Sending > " + message);
-        writer.println(message);
+    private void respond(OutputStream output, Boolean securityEnabled, String secret, String command) {
+        System.out.println("Sending > " + command);
+        byte[] encoded = NetworkCommands.encodeData(command, securityEnabled, secret);
+
+        try {
+            output.write(encoded);
+            output.flush();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void processCliCommand(String command) {
