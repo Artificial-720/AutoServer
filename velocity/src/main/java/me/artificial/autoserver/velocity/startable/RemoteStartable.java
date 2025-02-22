@@ -1,7 +1,6 @@
 package me.artificial.autoserver.velocity.startable;
 
 import com.velocitypowered.api.proxy.server.RegisteredServer;
-import me.artificial.autoserver.common.HMAC;
 import me.artificial.autoserver.velocity.AutoServer;
 import me.artificial.autoserver.common.NetworkCommands;
 
@@ -10,6 +9,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -48,40 +48,29 @@ public class RemoteStartable implements Startable {
             // setup socket
             try (Socket socket = new Socket(ip, port.get());
                  InputStream input = socket.getInputStream();
-                 OutputStream output = socket.getOutputStream();
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(input));
-                 PrintWriter writer = new PrintWriter(output, true)) {
-
-                // SEND boot command
+                 OutputStream output = socket.getOutputStream()) {
                 socket.setSoTimeout(TIMEOUT);
+
                 plugin.getLogger().debug("Attempting to send BOOT command");
-                String command = NetworkCommands.BOOT;
-                writer.println(command);
+                byte[] encoded = NetworkCommands.encodeData(NetworkCommands.BOOT, securityEnabled.orElse(false), secret);
+                output.write(encoded);
+                output.flush();
 
-                if (securityEnabled.isPresent() && securityEnabled.get()) {
-                    plugin.getLogger().debug("Security enabled sending signature.");
-                    // use security
-                    String signature;
-                    try {
-                        signature = HMAC.signMessage(command, secret);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                    writer.println(signature);
-                }
+                while (true) {
+                    byte[] lengthBytes = new byte[4];
+                    if (input.read(lengthBytes) != 4) break;
 
-                String response;
-                while ((response = reader.readLine()) != null) {
-                    plugin.getLogger().debug("Server Response: {}", response.trim());
+                    ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes);
+                    int totalLength = lengthBuffer.getInt();
 
-                    // process response
-                    BackendResponse backendResponse = new BackendResponse(response);
-                    if (!backendResponse.isValid()) {
-                        plugin.getLogger().warn(backendResponse.getErrorMsg());
-                        continue;
-                    }
+                    byte[] dataBytes = new byte[totalLength];
+                    if (input.read(dataBytes) != totalLength) break;
 
-                    switch (backendResponse.getStatus()) {
+                    NetworkCommands.DecodedMessage decodedMessage = NetworkCommands.decodeData(dataBytes, securityEnabled.orElse(false));
+
+                    // Handle command
+                    plugin.getLogger().debug("Received command: {}", decodedMessage);
+                    switch (decodedMessage.getCommand()) {
                         case NetworkCommands.ACKNOWLEDGED:
                             plugin.getLogger().info("Backend server has acknowledged boot command.");
                             break;
@@ -89,17 +78,15 @@ public class RemoteStartable implements Startable {
                             plugin.getLogger().info("Backend server booting.");
                             return "Backend server booting";
                         case NetworkCommands.FAILED:
-                            plugin.getLogger().error("Backend server failed to start. Message: {}", backendResponse.getMessage());
-                            throw new RuntimeException("Backend server failed to start. Message: " + backendResponse.getMessage());
+                            plugin.getLogger().error("Backend server failed to start.");
+                            throw new RuntimeException("Backend server failed to start.");
                         case NetworkCommands.ERROR:
-                            plugin.getLogger().warn("Error occurred on the backend server with message: {}", backendResponse.getMessage());
+                            plugin.getLogger().warn("Error occurred on the backend server.");
                             break;
                         default: // Unrecognized status received from the backend
-                            plugin.getLogger().warn("Unexpected status received: {}. Message: {}", backendResponse.getStatus(), backendResponse.getMessage());
+                            plugin.getLogger().warn("Unexpected command: {}", decodedMessage.getCommand());
                             break;
                     }
-
-                    plugin.getLogger().trace("Command processed continuing loop.");
                 }
             } catch (SocketTimeoutException e) {
                 plugin.getLogger().error("Timeout waiting for server response.");
@@ -115,41 +102,5 @@ public class RemoteStartable implements Startable {
     @Override
     public CompletableFuture<String> stop() {
         return null;
-    }
-
-    private static class BackendResponse {
-        private String status = null;
-        private String message = null;
-        private String errorMsg = null;
-
-        public BackendResponse(String msg) {
-            if (msg.isBlank()) {
-                errorMsg = "Received an empty or null response.";
-                return;
-            }
-            String[] parts = msg.split(":", 2);
-            if (parts.length < 2) {
-                errorMsg = "Malformed response received.";
-                return;
-            }
-            status = parts[0].trim();
-            message = parts[1].trim();
-        }
-
-        public String getStatus() {
-            return status;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public boolean isValid() {
-            return errorMsg == null;
-        }
-
-        public String getErrorMsg() {
-            return errorMsg;
-        }
     }
 }
