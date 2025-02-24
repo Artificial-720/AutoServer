@@ -36,13 +36,11 @@ public class RemoteStartable implements Startable {
             }
             plugin.getLogger().trace("Port is valid");
 
-            Optional<Boolean> securityEnabled = plugin.getConfig().getSecurity(server);
+            boolean securityEnabled = plugin.getConfig().getSecurity(server);
             String secret = plugin.getSecret();
-            if (securityEnabled.isPresent() && securityEnabled.get()) {
-                if (secret == null) {
-                    plugin.getLogger().error("Security enabled for {} but no secret is present.", server.getServerInfo().getName());
-                    throw new RuntimeException("Security failed.");
-                }
+            if (securityEnabled && secret == null) {
+                plugin.getLogger().error("Security enabled for {} but no secret is present.", server.getServerInfo().getName());
+                throw new RuntimeException("Security failed.");
             }
 
             // setup socket
@@ -52,7 +50,7 @@ public class RemoteStartable implements Startable {
                 socket.setSoTimeout(TIMEOUT);
 
                 plugin.getLogger().debug("Attempting to send BOOT command");
-                byte[] encoded = NetworkCommands.encodeData(NetworkCommands.BOOT, securityEnabled.orElse(false), secret);
+                byte[] encoded = NetworkCommands.encodeData(NetworkCommands.BOOT, securityEnabled, secret);
                 output.write(encoded);
                 output.flush();
 
@@ -66,7 +64,7 @@ public class RemoteStartable implements Startable {
                     byte[] dataBytes = new byte[totalLength];
                     if (input.read(dataBytes) != totalLength) break;
 
-                    NetworkCommands.DecodedMessage decodedMessage = NetworkCommands.decodeData(dataBytes, securityEnabled.orElse(false));
+                    NetworkCommands.DecodedMessage decodedMessage = NetworkCommands.decodeData(dataBytes, securityEnabled);
 
                     // Handle command
                     plugin.getLogger().debug("Received command: {}", decodedMessage);
