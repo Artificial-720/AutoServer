@@ -1,6 +1,5 @@
 plugins {
     id 'java'
-    id "org.jetbrains.gradle.plugin.idea-ext" version "1.0.1"
     id 'com.gradleup.shadow' version '9.0.0-beta4'
 }
 
@@ -47,5 +46,5 @@ shadowJar {
                 'Main-Class': 'me.artificial.autoserver.common.BootListener'
         )
     }
-    archiveFileName.set("${rootProject.name}-${version}+mc${project.minecraft_version}--shadow.jar")
+    archiveFileName.set("${rootProject.name}-${version}-all--shadow.jar")
 }

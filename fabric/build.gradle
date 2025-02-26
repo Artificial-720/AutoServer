@@ -24,7 +24,7 @@ processResources {
     def props = [version          : version,
                  authors          : author,
                  description      : project.description,
-                 minecraft_version: project.minecraft_version,
+                 minecraft_versions: project.fabric_minecraft_versions,
                  loader_version   : project.loader_version]
     inputs.properties props
     filteringCharset 'UTF-8'
@@ -39,5 +39,5 @@ shadowJar {
         attributes('Main-Class': 'me.artificial.autoserver.common.BootListener')
     }
 
-    archiveFileName.set("${rootProject.name}-${project.name}-${version}+mc${project.minecraft_version}--shadow.jar")
+    archiveFileName.set("${rootProject.name}-${project.name}-${version}--shadow.jar")
 }

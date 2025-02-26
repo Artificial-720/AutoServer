@@ -14,6 +14,7 @@ public class Configuration {
     private static final long DEFAULT_START_UP_DELAY = 60L;
     private static final long DEFAULT_SHUTDOWN_DELAY = 5L;
     private static final int DEFAULT_REMOTE_PORT = 8080;
+    private static final long DEFAULT_COMMUNICATION_VERSION = 2L;
 
     private final Path dataDirectory;
     private Toml config;
@@ -79,9 +80,8 @@ public class Configuration {
         return Optional.of(longPort.intValue());
     }
 
-    public Optional<Boolean> getSecurity(RegisteredServer server) {
-        Boolean security = config.getBoolean("servers." + server.getServerInfo().getName() + ".security");
-        return Optional.ofNullable(security);
+    public boolean getSecurity(RegisteredServer server) {
+        return config.getBoolean("servers." + server.getServerInfo().getName() + ".security", true);
     }
 
     public long getStartUpDelay(RegisteredServer server) {
@@ -98,6 +98,10 @@ public class Configuration {
 
     public String getLogLevel() {
         return config.getString("logging.level", "INFO").toUpperCase();
+    }
+
+    public int getCommunicationVersion(RegisteredServer server) {
+        return config.getLong("servers." + server.getServerInfo().getName() + ".communicationVersion", DEFAULT_COMMUNICATION_VERSION).intValue();
     }
 
     private Toml loadConfig(Path path) throws RuntimeException {

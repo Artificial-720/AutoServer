@@ -67,7 +67,6 @@ public class NetworkCommands {
 
     public static DecodedMessage decodeData(byte[] data, boolean securityEnabled) {
         try {
-            System.out.println("decode");
             ByteBuffer buffer = ByteBuffer.wrap(data);
             int commandLength = buffer.getInt();
             byte[] commandBytes = new byte[commandLength];
