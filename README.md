@@ -24,7 +24,7 @@ This section will cover how to install and configure a minimal setup of AutoServ
 
    Open the `autoserver/config.toml` in a text editor and search for the `[servers]` section. This section specifies the servers that AutoServer will manage. Create a table for each server you want AutoServer to manage. For example if you have a server named `lobby` you will create a table called `[servers.lobby]`.
 
-   Two routes you can head with configuring a server either a remote server or a local server. If you have a remote server you need to configure check out the [Remote Backend](#remote%20backend) section for more details. For the sake of this section we will handle a local server that we have a script for. This example local server is called `lobby` here is a minimal settings to start the server using a script:
+   Two routes you can head with configuring a server either a remote server or a local server. If you have a remote server you need to configure check out the [Remote Backend](#remote-backend) section for more details. For the sake of this section we will handle a local server that we have a script for. This example local server is called `lobby` here is a minimal settings to start the server using a script:
 
    ```toml
    [servers]
@@ -38,7 +38,7 @@ This section will cover how to install and configure a minimal setup of AutoServ
    ```
 
 4. **Repeat for each server**
-   Now repeat step 3 for each server you want to be managed by AutoServer. There is a lot of example commands in the [Commands](#command%20examples) section of this document. To help you build a command that works for your situation.
+   Now repeat step 3 for each server you want to be managed by AutoServer. There is a lot of example commands in the [Commands](#command-examples) section of this document. To help you build a command that works for your situation.
 
 ## Installation
 
@@ -211,7 +211,7 @@ Remote backend support is available for **PaperMC** and **FabricMC** servers. Re
 
 After the first launch, the plugin will generate a `AutoServer/config.yml` file in the same directory as the JAR file either `mods` or `plugins`.
 
-There are a few settings available on the remote backend to make this work. First you'll want to set the `server.workingDirectory` and `server.startCommand` for starting your server on the remote machine. The `startCommand` setting follows the same rules as `start` for the Velocity plugin so check out [Commands](#command%20examples) for examples.
+There are a few settings available on the remote backend to make this work. First you'll want to set the `server.workingDirectory` and `server.startCommand` for starting your server on the remote machine. The `startCommand` setting follows the same rules as `start` for the Velocity plugin so check out [Commands](#command-examples) for examples.
 
 Don't need to change the `bootListener` section unless you have a different port available for the backend listener.
 
@@ -233,7 +233,7 @@ startupDelay = 120
 security = true
 ```
 
-Then the matching example config for the `survival` server. This goes in `autoserver/config.yml`:
+Then the matching example config for the `survival` server. This goes in `AutoServer/config.yml`:
 
 ```yaml
 bootListener:
@@ -267,9 +267,11 @@ PaperMC AutoServer plugin supports hot reloading of the config file though the `
 
 ### Boot Listener
 
-The Boot Listener is the piece of software that will wait and listen for a command from the Velocity plugin to boot the server. Hence, the name Boot Listener. The Boot listener does have a command line interface so you can run commands like `reload` to hot reload the config file without needing to restart the Boot Listener.
+The Boot Listener is the piece of software that will wait and listen for a command from the Velocity plugin to boot the server - hence the name "Boot Listener". It also includes a command-line interface(CLI) so you can run commands like `reload` to hot reload the config file without needing to restart the Boot Listener.
 
-Because of the CLI support you might want to run the Boot Listener in some terminal that allows you to connect to it, rather than running it in the background. To do that reference the [Commands](#command%20examples) section to help build a command that will do this, then you will update the `bootListener.runJarCommand` to what you want. For example if you want to use `screen` do something like this:
+Because of the CLI support you might want to run the Boot Listener in a terminal that allows you to interact with it, rather than running it in the background. To do that reference the [Commands](#command-examples) section to help build a command that will do this, then you will update the `bootListener.runJarCommand` to what you want.
+
+For example if you want to use `screen` do something like this:
 ```yaml
 bootListener:
   runJarCommand: "screen -DmS boot-listener java -jar %jarName%"
@@ -277,7 +279,7 @@ bootListener:
 
 ## Troubleshooting
 
-- **Server not starting?** Ensure the start command in `config.toml` is correct and executable. It's helpful to run the command in a new terminal to test the commands output.
+- **Server not starting?** Ensure the `start` command in `config.toml` is correct and executable. It's helpful to run the command in a new terminal to test the commands output.
 
 ## License
 
