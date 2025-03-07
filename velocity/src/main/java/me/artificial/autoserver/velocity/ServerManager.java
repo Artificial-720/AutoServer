@@ -2,14 +2,14 @@ package me.artificial.autoserver.velocity;
 
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import com.velocitypowered.api.scheduler.ScheduledTask;
+import com.velocitypowered.api.scheduler.Scheduler;
 import me.artificial.autoserver.velocity.startable.LocalStartable;
 import me.artificial.autoserver.velocity.startable.RemoteStartable;
 import me.artificial.autoserver.velocity.startable.Startable;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
+import java.time.Duration;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -25,6 +25,7 @@ public class ServerManager {
     private final HashSet<String> startingServers = new HashSet<>();
     private final HashMap<Player, String> queuePlayers = new HashMap<>();
     private final Map<String, ServerStatus> serverStatusCache = new ConcurrentHashMap<>();
+    private final Map<String, ScheduledTask> shutdownScheduledTask = new ConcurrentHashMap<>();
 
     public ServerManager(AutoServer plugin) {
         this.plugin = plugin;
@@ -210,6 +211,62 @@ public class ServerManager {
         queuePlayers.put(player, serverName);
     }
 
+    /**
+     * Schedules server for shutdown.
+     *
+     * @param server The server to be scheduled for shutdown.
+     */
+    public void scheduleShutdownServer(RegisteredServer server, boolean isDisconnecting) {
+        assert server != null;
+        logger.trace("scheduleShutdownServer: {}", server.getServerInfo().getName());
+        int playerCount = server.getPlayersConnected().size();
+        if (isDisconnecting) {
+            playerCount--;
+        }
+        if (playerCount <= 0) {
+            long autoShutdownDelay = plugin.getConfig().getAutoShutdownDelay(server);
+            if (autoShutdownDelay <= 0) {
+                return;
+            }
+
+            assert !shutdownScheduledTask.containsKey(server.getServerInfo().getName()) : "Server already has task scheduled for shutdown.";
+
+            logger.info("Scheduling shutdown of server {} in {}", server.getServerInfo().getName(), autoShutdownDelay);
+            Scheduler.TaskBuilder taskBuilder = plugin.getProxy().getScheduler()
+                    .buildTask(plugin, () -> stopServer(server).whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            logger.error("error: {}", ex.getMessage());
+                        } else {
+                            logger.info("Message: {}", result);
+                        }
+                    })).delay(Duration.ofSeconds(autoShutdownDelay));
+
+            ScheduledTask scheduledTask = taskBuilder.schedule();
+            shutdownScheduledTask.put(server.getServerInfo().getName(), scheduledTask);
+        }
+    }
+
+    public void cancelShutdownServer(RegisteredServer server) {
+        String serverName = server.getServerInfo().getName();
+        if (shutdownScheduledTask.containsKey(serverName)) {
+            logger.info("Cancelling auto shutdown: {}", serverName);
+            shutdownScheduledTask.get(serverName).cancel();
+            shutdownScheduledTask.remove(serverName);
+        }
+    }
+
+    public void validateServers(Collection<RegisteredServer> servers) {
+        logger.trace("Validating Server status...");
+        for (RegisteredServer server : servers) {
+            pingServer(server, 5000).thenApply((isOnline) -> {
+                if (isOnline) {
+                    scheduleShutdownServer(server, false);
+                }
+                return null;
+            });
+        }
+    }
+
     private Startable getServerStrategy(RegisteredServer server) {
         Optional<Boolean> remote = plugin.getConfig().isRemoteServer(server);
         if (remote.isPresent() && remote.get()) {
@@ -314,5 +371,4 @@ public class ServerManager {
             }
         });
     }
-
 }

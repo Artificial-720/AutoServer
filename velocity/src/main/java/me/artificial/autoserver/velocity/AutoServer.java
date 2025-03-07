@@ -4,6 +4,9 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.connection.DisconnectEvent;
+import com.velocitypowered.api.event.player.KickedFromServerEvent;
+import com.velocitypowered.api.event.player.ServerPostConnectEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
@@ -88,6 +91,7 @@ public class AutoServer {
         }
 
 //        serverManager.refreshServerCache(proxy.getAllServers());
+        serverManager.validateServers(proxy.getAllServers());
         logger.info("Successfully enabled AutoServer");
     }
 
@@ -106,6 +110,9 @@ public class AutoServer {
         String originalServerName = originalServer.getServerInfo().getName();
         logger.debug("Player {} attempting to join {}", event.getPlayer().getUsername(), originalServerName);
 
+        // cancel schedule shutdown for server
+        serverManager.cancelShutdownServer(originalServer);
+
         CompletableFuture<Boolean> isResponsive = serverManager.isServerResponsive(originalServer);
         try {
             if (isResponsive.get()) {
@@ -119,7 +126,7 @@ public class AutoServer {
                 sendMessageToPlayer(event.getPlayer(), config.getMessage("starting").orElse(""), originalServerName);
                 serverManager.queuePlayerForServerJoin(event.getPlayer(), originalServerName);
                 serverManager.startServer(originalServer).exceptionally(ex -> {
-                    // Check if connected to a server already
+                    // Check if the is already connected to a server
                     Optional<ServerConnection> playerCurrentServer = event.getPlayer().getCurrentServer();
                     if (playerCurrentServer.isEmpty()) {
                         event.getPlayer().disconnect(Component.text("Failed to start server " + originalServerName).color(NamedTextColor.RED));
@@ -140,6 +147,39 @@ public class AutoServer {
         long endTime = System.nanoTime();
         long duration = (endTime - startTime);
         logger.debug("onServerPreConnect completed in: {}", duration);
+    }
+
+    @Subscribe
+    public void onServerPostConnect(ServerPostConnectEvent event) {
+        logger.trace("{}ServerPostConnectEvent: {} {}", AnsiColors.CYAN, event, AnsiColors.RESET);
+
+        RegisteredServer previousServer = event.getPreviousServer();
+
+        if (previousServer != null) {
+            serverManager.scheduleShutdownServer(previousServer, false);
+        }
+    }
+
+    @Subscribe
+    public void onDisconnect(DisconnectEvent event) {
+        logger.trace("{}DisconnectEvent: {} {}", AnsiColors.CYAN, event, AnsiColors.RESET);
+
+        Player player = event.getPlayer();
+        Optional<ServerConnection> serverConnection = player.getCurrentServer();
+        serverConnection.ifPresent(connection -> serverManager.scheduleShutdownServer(connection.getServer(), true));
+    }
+
+    @Subscribe
+    public void onPlayerKicked(KickedFromServerEvent event) {
+        logger.trace("{}KickedFromServerEvent: {} {}", AnsiColors.CYAN, event, AnsiColors.RESET);
+
+        Player player = event.getPlayer();
+        RegisteredServer server = event.getServer();
+        String kickedFrom = server.getServerInfo().getName();
+
+        logger.debug("{} was kicked from {} for {}", player.getUsername(), kickedFrom, event.getServerKickReason().orElse(null));
+
+        serverManager.scheduleShutdownServer(server, false);
     }
 
     public AutoServerLogger getLogger() {
