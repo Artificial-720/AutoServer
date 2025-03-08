@@ -6,10 +6,11 @@ AutoServer is a Minecraft plugin designed for the [Velocity Proxy](https://paper
 
 ## Features
 
-- Automatically starts backend servers on player connection attempts.
-- Manually start and stop backend servers though commands.
-- Configuration hot reloading.
-- Configurable messages.
+- Automatically starts backend servers when a player attempts to connect.
+- Automatically stops local servers when no players are online.
+- Manually start and stop backend servers using commands.
+- Supports configuration hot reloading.
+- Customizable messages.
 
 ## Getting Started
 
