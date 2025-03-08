@@ -29,7 +29,18 @@ public class LocalStartable implements Startable {
             Optional<Boolean> preserveQuotes = plugin.getConfig().getPreserveQuotes(server);
 
             plugin.getLogger().info("Running start command for {} server. \"{}{}{}\"", server.getServerInfo().getName(), AnsiColors.YELLOW, command.get(), AnsiColors.RESET);
-            CommandRunner.runCommand(path.orElse(null), command.get(), preserveQuotes.orElse(null));
+            CommandRunner.CommandResult commandResult = CommandRunner.runCommand(path.orElse(null), command.get(), preserveQuotes.orElse(null));
+            if (commandResult.failedToStart()) {
+                throw new RuntimeException(commandResult.getErrorMessage());
+            }
+
+            plugin.getLogger().debug("Command Result: {}", commandResult);
+            if (commandResult.isTerminated()) {
+                String out = commandResult.getProcessOutput();
+                if (!out.isBlank()) {
+                    plugin.getLogger().info("Command exited fast might have an error here is the output: {}{}{}", AnsiColors.YELLOW, out, AnsiColors.RESET);
+                }
+            }
             return "Command ran successfully";
         });
     }
@@ -46,7 +57,18 @@ public class LocalStartable implements Startable {
             Optional<Boolean> preserveQuotes = plugin.getConfig().getPreserveQuotes(server);
 
             plugin.getLogger().info("Running stop command for {} server. \"{}{}{}\"", server.getServerInfo().getName(), AnsiColors.YELLOW, command.get(), AnsiColors.RESET);
-            CommandRunner.runCommand(path.orElse(null), command.get(), preserveQuotes.orElse(null));
+            CommandRunner.CommandResult commandResult = CommandRunner.runCommand(path.orElse(null), command.get(), preserveQuotes.orElse(null));
+            if (commandResult.failedToStart()) {
+                throw new RuntimeException(commandResult.getErrorMessage());
+            }
+
+            plugin.getLogger().debug("Command Result: {}", commandResult);
+            if (commandResult.isTerminated()) {
+                String out = commandResult.getProcessOutput();
+                if (!out.isBlank()) {
+                    plugin.getLogger().info("Command exited fast might have an error here is the output: {}{}{}", AnsiColors.YELLOW, out, AnsiColors.RESET);
+                }
+            }
             return "Command ran successfully";
         });
     }
