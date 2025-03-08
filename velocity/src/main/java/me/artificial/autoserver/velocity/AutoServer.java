@@ -106,7 +106,7 @@ public class AutoServer {
         long startTime = System.nanoTime();
         // Check if the target server should be started
         RegisteredServer originalServer = event.getOriginalServer(); // Server trying to connect too
-        //RegisteredServer previousServer = event.getPreviousServer(); // Server was connected too
+        RegisteredServer previousServer = event.getPreviousServer(); // Server was connected too
         String originalServerName = originalServer.getServerInfo().getName();
         logger.debug("Player {} attempting to join {}", event.getPlayer().getUsername(), originalServerName);
 
@@ -123,7 +123,9 @@ public class AutoServer {
                 logger.info("Server {}{}{} is not online attempting to start server", AnsiColors.RED, originalServerName, AnsiColors.RESET);
                 event.setResult(ServerPreConnectEvent.ServerResult.denied());
 
-                sendMessageToPlayer(event.getPlayer(), config.getMessage("starting").orElse(""), originalServerName);
+                if (previousServer != null) {
+                    sendMessageToPlayer(event.getPlayer(), config.getMessage("starting").orElse(""), originalServerName);
+                }
                 serverManager.queuePlayerForServerJoin(event.getPlayer(), originalServerName);
                 serverManager.startServer(originalServer).exceptionally(ex -> {
                     // Check if the is already connected to a server
