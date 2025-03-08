@@ -354,19 +354,32 @@ public class ServerManager {
             if (serverName.equals(server.getServerInfo().getName())) {
                 if (player.isActive()) {
                     // Notify the player
-                    AutoServer.sendMessageToPlayer(player, plugin.getConfig().getMessage("notify").orElse(""));
+                    if (player.getCurrentServer().isPresent()) {
+                        AutoServer.sendMessageToPlayer(player, plugin.getConfig().getMessage("notify").orElse(""));
+                        // Schedule the connection request to run after 5 seconds
+                        plugin.getProxy().getScheduler().buildTask(plugin, () ->
+                                player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
+                                    if (throwable != null) {
+                                        AutoServer.sendMessageToPlayer(player, plugin.getConfig().getMessage("failed").orElse(""), serverName);
+                                        logger.error("Failed to connect player to server {}", throwable.getMessage());
+                                    } else {
+                                        logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
+                                    }
+                                    queuePlayers.remove(player);
+                                })).delay(5, TimeUnit.SECONDS).schedule();
+                    } else {
+                        // Not connected to a server so want to connect fast
+                        player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
+                            if (throwable != null) {
+                                AutoServer.sendMessageToPlayer(player, plugin.getConfig().getMessage("failed").orElse(""), serverName);
+                                logger.error("Failed to connect player to server {}", throwable.getMessage());
+                            } else {
+                                logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
+                            }
+                            queuePlayers.remove(player);
+                        });
+                    }
 
-                    // Schedule the connection request to run after 5 seconds
-                    plugin.getProxy().getScheduler().buildTask(plugin, () ->
-                            player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
-                                if (throwable != null) {
-                                    AutoServer.sendMessageToPlayer(player, plugin.getConfig().getMessage("failed").orElse(""), serverName);
-                                    logger.error("Failed to connect player to server {}", throwable.getMessage());
-                                } else {
-                                    logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
-                                }
-                                queuePlayers.remove(player);
-                            })).delay(5, TimeUnit.SECONDS).schedule();
                 }
             }
         });
