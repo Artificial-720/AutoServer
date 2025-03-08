@@ -15,6 +15,7 @@ public class Configuration {
     private static final long DEFAULT_SHUTDOWN_DELAY = 5L;
     private static final int DEFAULT_REMOTE_PORT = 8080;
     private static final long DEFAULT_COMMUNICATION_VERSION = 2L;
+    private static final long DEFAULT_AUTO_SHUTDOWN_DELAY = -1L;
 
     private final Path dataDirectory;
     private Toml config;
@@ -90,6 +91,10 @@ public class Configuration {
 
     public long getShutdownDelay(RegisteredServer server) {
         return config.getLong("servers." + server.getServerInfo().getName() + ".shutdownDelay", DEFAULT_SHUTDOWN_DELAY);
+    }
+
+    public long getAutoShutdownDelay(RegisteredServer server) {
+        return config.getLong("servers." + server.getServerInfo().getName() + ".autoShutdownDelay", DEFAULT_AUTO_SHUTDOWN_DELAY);
     }
 
     public boolean checkForUpdate() {

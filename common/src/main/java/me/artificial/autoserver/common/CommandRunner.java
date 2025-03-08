@@ -43,6 +43,11 @@ public class CommandRunner {
             return "";
         }
 
+        public int getExitCode() {
+            assert !process.isAlive() : "Must check that CommandResult.isTerminated() before calling getExitCode.";
+            return process.exitValue();
+        }
+
         @Override
         public String toString() {
             return "CommandResult{" +
