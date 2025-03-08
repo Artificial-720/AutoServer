@@ -69,17 +69,18 @@ After the first launch, the plugin will generate a `config.toml` file in the `pl
 
 ### Servers
 
-| **Key**            | **Type**  | **Description**                                                                                                                                                     |
-|--------------------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `startupDelay`     | `int`     | Time in seconds to wait before attempting to connect a player after starting the server.                                                                            |
-| `shutdownDelay`    | `int`     | Time in seconds to wait before verifying whether the server has successfully shut down.                                                                             |
-| `start`            | `string`  | Command used to start the server locally.                                                                                                                           |
-| `stop`             | `string`  | Command used to stop the server locally.                                                                                                                            |
-| `workingDirectory` | `string`  | Path to the directory where the server runs.                                                                                                                        |
-| `remote`           | `boolean` | Specifies whether the server is remote (`true`) or local (`false`).                                                                                                 |
-| `port`             | `int`     | Port number on which the remote server listens for the start command.                                                                                               |
-| `preserveQuotes`   | `boolean` | (Optional) Controls whether leading and trailing quotes are preserved, with quotes being removed by default on non-Windows systems unless explicitly set to `true`. |
-| `security`         | `boolean` | Specifies whether the remote server should use security on message (default: `true`)                                                                                |
+| **Key**             | **Type**  | **Description**                                                                                                                                                     |
+|---------------------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `startupDelay`      | `int`     | Time in seconds to wait before attempting to connect a player after starting the server.                                                                            |
+| `shutdownDelay`     | `int`     | Time in seconds to wait before verifying whether the server has successfully shut down.                                                                             |
+| `start`             | `string`  | Command used to start the server locally.                                                                                                                           |
+| `stop`              | `string`  | Command used to stop the server locally.                                                                                                                            |
+| `workingDirectory`  | `string`  | Path to the directory where the server runs.                                                                                                                        |
+| `remote`            | `boolean` | Specifies whether the server is remote (`true`) or local (`false`).                                                                                                 |
+| `port`              | `int`     | Port number on which the remote server listens for the start command.                                                                                               |
+| `preserveQuotes`    | `boolean` | (Optional) Controls whether leading and trailing quotes are preserved, with quotes being removed by default on non-Windows systems unless explicitly set to `true`. |
+| `security`          | `boolean` | Specifies whether the remote server should use security on message (default: `true`)                                                                                |
+| `autoShutdownDelay` | `int`     | Duration (in seconds) to wait before automatically shutting down the server; set to 0 to disable this feature.                                                      |
 
 ###  Command examples
 

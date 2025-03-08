@@ -51,6 +51,10 @@ notify = "Server is ready you will be connected in 5 seconds..."
 # Specifies whether the REMOTE server should use security on message (default: true).
 # Note this requires copying the exact value from Velocity's forwarding.secret to the remote config
 #security = true
+# Duration (in seconds) to wait before automatically shutting down the server.
+# Set to 0 to disable automatically shutting down the server.
+#autoShutdownDelay = 1800
+
 
 # Example Configuration for a LOCAL server named "survival".
 [servers.survival]
@@ -65,6 +69,8 @@ stop = "screen -p 0 -S mc-example -X stuff \"stop\r\""
 startupDelay = 60
 # If your server is taking a long time to shut down increase this time.
 shutdownDelay = 5
+# Automatically shut down the survival server if no players are online for 30 minutes.
+autoShutdownDelay = 1800
 
 
 # Example Configuration for a REMOTE server named "creative".
