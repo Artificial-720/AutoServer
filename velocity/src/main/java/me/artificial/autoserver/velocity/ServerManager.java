@@ -49,7 +49,7 @@ public class ServerManager {
 
         startingServers.add(serverName);
 
-        logger.info("Attempting to start server: {}", serverName);
+        logger.debug("Attempting to start server: {}", serverName);
 
         // Determine start strategy
         Startable startableStrategy = getServerStrategy(server);
