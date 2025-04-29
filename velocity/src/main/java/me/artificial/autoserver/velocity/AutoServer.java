@@ -101,7 +101,7 @@ public class AutoServer {
                         }
                     }
                 })
-                .repeat(5L, TimeUnit.MINUTES)
+                .repeat(config.getMaintenanceInterval(), TimeUnit.MINUTES)
                 .schedule();
 
 //        serverManager.refreshServerCache(proxy.getAllServers());

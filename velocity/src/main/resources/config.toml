@@ -5,6 +5,9 @@
 # Should AutoServer check for updates?
 checkForUpdates = true
 
+# Time (in minutes) between maintenance task executions.
+# You generally don't need to change this value.
+maintenanceInterval = 5
 
 [messages]
 # Prefix added to all messages displayed to the player.
