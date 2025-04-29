@@ -30,6 +30,7 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 @Plugin(id = "autoserver")
 public class AutoServer {
@@ -89,6 +90,19 @@ public class AutoServer {
         if (config.checkForUpdate()) {
             notifyUpdates();
         }
+
+        // setup maintenance check
+        proxy.getScheduler()
+                .buildTask(this, () -> {
+                    logger.trace("Maintenance task running.");
+                    for (RegisteredServer registeredServer : proxy.getAllServers()) {
+                        if (registeredServer.getPlayersConnected().isEmpty()) {
+                            serverManager.scheduleShutdownServer(registeredServer, false);
+                        }
+                    }
+                })
+                .repeat(5L, TimeUnit.MINUTES)
+                .schedule();
 
 //        serverManager.refreshServerCache(proxy.getAllServers());
         serverManager.validateServers(proxy.getAllServers());
