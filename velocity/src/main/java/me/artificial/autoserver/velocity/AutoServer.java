@@ -20,7 +20,6 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import me.artificial.autoserver.velocity.commands.AutoServerCommand;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -30,6 +29,7 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 @Plugin(id = "autoserver")
 public class AutoServer {
@@ -38,6 +38,7 @@ public class AutoServer {
     private final PluginContainer pluginContainer;
     private final Configuration config;
     private ServerManager serverManager;
+    private RateLimiter rateLimiter;
 
     @SuppressWarnings("unused")
     @Inject
@@ -47,22 +48,6 @@ public class AutoServer {
         this.config = new Configuration(dataDirectory);
         this.logger = new AutoServerLogger(this, logger);
         this.pluginContainer = pluginContainer;
-    }
-
-    public static void sendMessageToPlayer(Player player, String message) {
-        sendMessageToPlayer(player, message, null);
-    }
-
-    public static void sendMessageToPlayer(Player player, String message, String serverName) {
-        if (message == null) {
-            return;
-        }
-        if (serverName != null) {
-            message = message.replace("%serverName%", serverName);
-        }
-        MiniMessage miniMessage = MiniMessage.miniMessage();
-        Component component = miniMessage.deserialize(message);
-        player.sendMessage(component);
     }
 
     @Subscribe
@@ -90,8 +75,18 @@ public class AutoServer {
             notifyUpdates();
         }
 
+        // setup maintenance check
+        proxy.getScheduler()
+                .buildTask(this, () -> {
+                    logger.trace("Maintenance task running.");
+                    serverManager.validateServers(proxy.getAllServers());
+                })
+                .repeat(config.getMaintenanceInterval(), TimeUnit.MINUTES)
+                .schedule();
+
+        rateLimiter = new RateLimiter(config.StartRateLimit());
+
 //        serverManager.refreshServerCache(proxy.getAllServers());
-        serverManager.validateServers(proxy.getAllServers());
         logger.info("Successfully enabled AutoServer");
     }
 
@@ -110,6 +105,20 @@ public class AutoServer {
         String originalServerName = originalServer.getServerInfo().getName();
         logger.debug("Player {} attempting to join {}", event.getPlayer().getUsername(), originalServerName);
 
+        if (!rateLimiter.canRequest(event.getPlayer())) {
+            // exceeded limit
+            Optional<ServerConnection> playerCurrentServer = event.getPlayer().getCurrentServer();
+            if (playerCurrentServer.isPresent()) {
+                Messenger.send(event.getPlayer(),
+                        config.getMessage("startRateLimitExceeded").orElse(""),
+                        rateLimiter.getRemainingCooldown(event.getPlayer()));
+                event.setResult(ServerPreConnectEvent.ServerResult.denied());
+                logger.debug("Player {} exceeded rate limit, join request denied.", event.getPlayer().getUsername());
+                return;
+            }
+            // not on a server allow to bypass the rate limit
+        }
+
         // cancel schedule shutdown for server
         serverManager.cancelShutdownServer(originalServer);
 
@@ -124,7 +133,7 @@ public class AutoServer {
                 event.setResult(ServerPreConnectEvent.ServerResult.denied());
 
                 if (previousServer != null) {
-                    sendMessageToPlayer(event.getPlayer(), config.getMessage("starting").orElse(""), originalServerName);
+                    Messenger.send(event.getPlayer(), config.getMessage("starting").orElse(""), originalServerName);
                 }
                 serverManager.queuePlayerForServerJoin(event.getPlayer(), originalServerName);
                 serverManager.startServer(originalServer).exceptionally(ex -> {
@@ -134,7 +143,7 @@ public class AutoServer {
                         event.getPlayer().disconnect(Component.text("Failed to start server " + originalServerName).color(NamedTextColor.RED));
                     } else {
                         // send fail message
-                        sendMessageToPlayer(event.getPlayer(), config.getMessage("failed").orElse(""), originalServerName);
+                        Messenger.send(event.getPlayer(), config.getMessage("failed").orElse(""), originalServerName);
                     }
                     return null;
                 });

@@ -259,7 +259,7 @@ public class ServerManager {
         logger.trace("Validating Server status...");
         for (RegisteredServer server : servers) {
             pingServer(server, 5000).thenApply((isOnline) -> {
-                if (isOnline) {
+                if (isOnline && server.getPlayersConnected().isEmpty()) {
                     scheduleShutdownServer(server, false);
                 }
                 return null;
@@ -355,12 +355,12 @@ public class ServerManager {
                 if (player.isActive()) {
                     // Notify the player
                     if (player.getCurrentServer().isPresent()) {
-                        AutoServer.sendMessageToPlayer(player, plugin.getConfig().getMessage("notify").orElse(""));
+                        Messenger.send(player, plugin.getConfig().getMessage("notify").orElse(""));
                         // Schedule the connection request to run after 5 seconds
                         plugin.getProxy().getScheduler().buildTask(plugin, () ->
                                 player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
                                     if (throwable != null) {
-                                        AutoServer.sendMessageToPlayer(player, plugin.getConfig().getMessage("failed").orElse(""), serverName);
+                                        Messenger.send(player, plugin.getConfig().getMessage("failed").orElse(""), serverName);
                                         logger.error("Failed to connect player to server {}", throwable.getMessage());
                                     } else {
                                         logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
@@ -371,7 +371,7 @@ public class ServerManager {
                         // Not connected to a server so want to connect fast
                         player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
                             if (throwable != null) {
-                                AutoServer.sendMessageToPlayer(player, plugin.getConfig().getMessage("failed").orElse(""), serverName);
+                                Messenger.send(player, plugin.getConfig().getMessage("failed").orElse(""), serverName);
                                 logger.error("Failed to connect player to server {}", throwable.getMessage());
                             } else {
                                 logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
