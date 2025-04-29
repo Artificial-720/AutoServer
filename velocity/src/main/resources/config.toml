@@ -9,6 +9,10 @@ checkForUpdates = true
 # You generally don't need to change this value.
 maintenanceInterval = 5
 
+# Number of requests allowed per user per minute.
+# Limits how frequently a user can initiate a new request.
+startRateLimit = 2
+
 [messages]
 # Prefix added to all messages displayed to the player.
 prefix = "[<green>AutoServer<reset>] "
@@ -24,7 +28,9 @@ failed = "<red> Unable to connect you to %serverName%.<reset> Please try again l
 # Message displayed to the player when the server is ready, indicating that they will be connected shortly.
 notify = "Server is ready you will be connected in 5 seconds..."
 
-
+# Message shown to users when they exceed the rate limit.
+# %time% will be replaced with the number of seconds remaining.
+startRateLimitExceeded = "Too many requests: You can initiate a new request in %time% seconds."
 
 # Define servers here.
 [servers]

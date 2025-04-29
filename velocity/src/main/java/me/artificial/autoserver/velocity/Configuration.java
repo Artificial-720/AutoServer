@@ -113,6 +113,10 @@ public class Configuration {
         return config.getLong("maintenanceInterval", 5L);
     }
 
+    public long StartRateLimit() {
+        return config.getLong("startRateLimit", 2L);
+    }
+
     private Toml loadConfig(Path path) throws RuntimeException {
         File configFile = new File(path.toFile(), "config.toml");
 
