@@ -26,7 +26,8 @@ starting = "<red> %serverName% <reset> is currently offline. Server is starting 
 failed = "<red> Unable to connect you to %serverName%.<reset> Please try again later or contact support if this issue persists."
 
 # Message displayed to the player when the server is ready, indicating that they will be connected shortly.
-notify = "Server is ready you will be connected in 5 seconds..."
+# %serverName% will be replaced with the name of the backend server.
+notify = "Server %serverName% is ready you will be connected in 5 seconds..."
 
 # Message shown to users when they exceed the rate limit.
 # %time% will be replaced with the number of seconds remaining.

@@ -27,7 +27,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -37,6 +40,7 @@ public class AutoServer {
     private final AutoServerLogger logger;
     private final PluginContainer pluginContainer;
     private final Configuration config;
+    private final Set<UUID> internalTransfers = ConcurrentHashMap.newKeySet();
     private ServerManager serverManager;
     private RateLimiter rateLimiter;
 
@@ -98,6 +102,9 @@ public class AutoServer {
 
     @Subscribe
     public void onServerPreConnect(ServerPreConnectEvent event) {
+        if (internalTransfers.remove(event.getPlayer().getUniqueId())) {
+            return; // This was a plugin initiated request skipping handling
+        }
         long startTime = System.nanoTime();
         // Check if the target server should be started
         RegisteredServer originalServer = event.getOriginalServer(); // Server trying to connect too
@@ -165,9 +172,8 @@ public class AutoServer {
         logger.trace("{}ServerPostConnectEvent: {} {}", AnsiColors.CYAN, event, AnsiColors.RESET);
 
         RegisteredServer previousServer = event.getPreviousServer();
-
-        if (previousServer != null) {
-            serverManager.scheduleShutdownServer(previousServer, false);
+        if (previousServer != null && previousServer.getPlayersConnected().isEmpty()) {
+            serverManager.scheduleShutdownServer(previousServer);
         }
     }
 
@@ -177,7 +183,22 @@ public class AutoServer {
 
         Player player = event.getPlayer();
         Optional<ServerConnection> serverConnection = player.getCurrentServer();
-        serverConnection.ifPresent(connection -> serverManager.scheduleShutdownServer(connection.getServer(), true));
+        if (serverConnection.isEmpty()) {
+            return;
+        }
+        RegisteredServer server = serverConnection.get().getServer();
+        // Count the number of players on the server
+        // Doing this manually to prevent a race condition where the player
+        // disconnecting is still included in getPlayersConnected()
+        int others = 0;
+        for (Player p : server.getPlayersConnected()) {
+            if (p.getUniqueId() != player.getUniqueId()) {
+                others++;
+            }
+        }
+        if (others <= 0) {
+            serverManager.scheduleShutdownServer(server);
+        }
     }
 
     @Subscribe
@@ -190,7 +211,9 @@ public class AutoServer {
 
         logger.debug("{} was kicked from {} for {}", player.getUsername(), kickedFrom, event.getServerKickReason().orElse(null));
 
-        serverManager.scheduleShutdownServer(server, false);
+        if (server.getPlayersConnected().isEmpty()) {
+            serverManager.scheduleShutdownServer(server);
+        }
     }
 
     public AutoServerLogger getLogger() {
@@ -221,6 +244,10 @@ public class AutoServer {
             logger.error("Failed to get secret: " + e.getMessage());
         }
         return null;
+    }
+
+    public void internalTransfer(Player player) {
+        internalTransfers.add(player.getUniqueId());
     }
 
     private void notifyUpdates() {

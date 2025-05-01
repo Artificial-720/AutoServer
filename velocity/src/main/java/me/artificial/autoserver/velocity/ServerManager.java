@@ -216,34 +216,31 @@ public class ServerManager {
      *
      * @param server The server to be scheduled for shutdown.
      */
-    public void scheduleShutdownServer(RegisteredServer server, boolean isDisconnecting) {
+    public void scheduleShutdownServer(RegisteredServer server) {
         assert server != null;
         logger.trace("scheduleShutdownServer: {}", server.getServerInfo().getName());
-        int playerCount = server.getPlayersConnected().size();
-        if (isDisconnecting) {
-            playerCount--;
+        long autoShutdownDelay = plugin.getConfig().getAutoShutdownDelay(server);
+        if (autoShutdownDelay <= 0) {
+            return;
         }
-        if (playerCount <= 0) {
-            long autoShutdownDelay = plugin.getConfig().getAutoShutdownDelay(server);
-            if (autoShutdownDelay <= 0) {
-                return;
-            }
 
-            assert !shutdownScheduledTask.containsKey(server.getServerInfo().getName()) : "Server already has task scheduled for shutdown.";
+        assert !shutdownScheduledTask.containsKey(server.getServerInfo().getName()) : "Server already has task scheduled for shutdown.";
+        logger.info("Scheduling shutdown of server {} in {}", server.getServerInfo().getName(), autoShutdownDelay);
 
-            logger.info("Scheduling shutdown of server {} in {}", server.getServerInfo().getName(), autoShutdownDelay);
-            Scheduler.TaskBuilder taskBuilder = plugin.getProxy().getScheduler()
-                    .buildTask(plugin, () -> stopServer(server).whenComplete((result, ex) -> {
+        Scheduler.TaskBuilder taskBuilder = plugin.getProxy().getScheduler()
+                .buildTask(plugin,() -> {
+                    assert server.getPlayersConnected().isEmpty() : "Server is not empty";
+                    stopServer(server).whenComplete((result, ex) -> {
                         if (ex != null) {
                             logger.error("error: {}", ex.getMessage());
                         } else {
                             logger.info("Message: {}", result);
                         }
-                    })).delay(Duration.ofSeconds(autoShutdownDelay));
+                    });
+                }).delay(Duration.ofSeconds(autoShutdownDelay));
 
-            ScheduledTask scheduledTask = taskBuilder.schedule();
-            shutdownScheduledTask.put(server.getServerInfo().getName(), scheduledTask);
-        }
+        ScheduledTask scheduledTask = taskBuilder.schedule();
+        shutdownScheduledTask.put(server.getServerInfo().getName(), scheduledTask);
     }
 
     public void cancelShutdownServer(RegisteredServer server) {
@@ -260,7 +257,7 @@ public class ServerManager {
         for (RegisteredServer server : servers) {
             pingServer(server, 5000).thenApply((isOnline) -> {
                 if (isOnline && server.getPlayersConnected().isEmpty()) {
-                    scheduleShutdownServer(server, false);
+                    scheduleShutdownServer(server);
                 }
                 return null;
             });
@@ -355,18 +352,20 @@ public class ServerManager {
                 if (player.isActive()) {
                     // Notify the player
                     if (player.getCurrentServer().isPresent()) {
-                        Messenger.send(player, plugin.getConfig().getMessage("notify").orElse(""));
+                        Messenger.send(player, plugin.getConfig().getMessage("notify").orElse(""), serverName);
                         // Schedule the connection request to run after 5 seconds
-                        plugin.getProxy().getScheduler().buildTask(plugin, () ->
-                                player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
-                                    if (throwable != null) {
-                                        Messenger.send(player, plugin.getConfig().getMessage("failed").orElse(""), serverName);
-                                        logger.error("Failed to connect player to server {}", throwable.getMessage());
-                                    } else {
-                                        logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
-                                    }
-                                    queuePlayers.remove(player);
-                                })).delay(5, TimeUnit.SECONDS).schedule();
+                        plugin.getProxy().getScheduler().buildTask(plugin, () -> {
+                            plugin.internalTransfer(player);
+                            player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
+                                if (throwable != null) {
+                                    Messenger.send(player, plugin.getConfig().getMessage("failed").orElse(""), serverName);
+                                    logger.error("Failed to connect player to server {}", throwable.getMessage());
+                                } else {
+                                    logger.info("Player {} successfully moved to server {}", player.getUsername(), serverName);
+                                }
+                                queuePlayers.remove(player);
+                            });
+                        }).delay(5, TimeUnit.SECONDS).schedule();
                     } else {
                         // Not connected to a server so want to connect fast
                         player.createConnectionRequest(server).connect().whenComplete((result, throwable) -> {
