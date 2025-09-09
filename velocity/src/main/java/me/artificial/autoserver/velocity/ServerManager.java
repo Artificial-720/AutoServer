@@ -257,6 +257,7 @@ public class ServerManager {
         for (RegisteredServer server : servers) {
             pingServer(server, 5000).thenApply((isOnline) -> {
                 if (isOnline && server.getPlayersConnected().isEmpty()) {
+                    cancelShutdownServer(server);
                     scheduleShutdownServer(server);
                 }
                 return null;
