@@ -257,7 +257,12 @@ public class ServerManager {
         for (RegisteredServer server : servers) {
             pingServer(server, 5000).thenApply((isOnline) -> {
                 if (isOnline && server.getPlayersConnected().isEmpty()) {
-                    cancelShutdownServer(server);
+                    String serverName = server.getServerInfo().getName();
+                    if (shutdownScheduledTask.containsKey(serverName)) {
+                        logger.trace("Server {} is already scheduled to stop", serverName);
+                        return null;
+                    }
+
                     scheduleShutdownServer(server);
                 }
                 return null;
