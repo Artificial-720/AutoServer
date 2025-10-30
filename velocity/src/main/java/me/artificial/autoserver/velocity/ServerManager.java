@@ -8,6 +8,8 @@ import me.artificial.autoserver.velocity.startable.LocalStartable;
 import me.artificial.autoserver.velocity.startable.RemoteStartable;
 import me.artificial.autoserver.velocity.startable.Startable;
 
+import java.io.IOException;
+import java.net.Socket;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -288,13 +290,38 @@ public class ServerManager {
                 getServerStatus(server).setStatus(ServerStatus.Status.RUNNING);
             }
             return true;
-        }).exceptionally(e -> {
+        }).exceptionallyCompose(e -> {
+            logger.debug("ping failed for {}: {}", serverName, e.getMessage());
+            // Handle large or malformed packet errors
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            String msg = cause.getMessage() != null ? cause.getMessage() : "";
+            if (msg.contains("A packet did not decode successfully")) {
+                logger.debug("failed to decode packet, likely online trying socket connect");
+                // good chance the server is online check with a socket connect
+                return CompletableFuture.supplyAsync(() -> {
+                    try (Socket socket = new Socket()) {
+                        socket.connect(server.getServerInfo().getAddress());
+                        logger.warn("Socket connection to {} succeeded, treating as online.", serverName);
+                        if (!getServerStatus(server).isStopping()) {
+                            getServerStatus(server).setStatus(ServerStatus.Status.RUNNING);
+                        }
+                        return true;
+                    } catch (IOException ioe) {
+                        logger.warn("Socket connection to {} failed after ping error.", serverName);
+                        if (!getServerStatus(server).isStarting()) {
+                            getServerStatus(server).setStatus(ServerStatus.Status.STOPPED);
+                        }
+                        return false;
+                    }
+                });
+            }
+
             logger.debug("ping failed {} is {}offline{}", serverName, AnsiColors.RED, AnsiColors.RESET);
             if (!getServerStatus(server).isStarting()) {
                 // only update to stopped if not in a state of starting
                 getServerStatus(server).setStatus(ServerStatus.Status.STOPPED);
             }
-            return false;
+            return CompletableFuture.completedFuture(false);
         });
     }
 
